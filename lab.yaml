@@ -1,0 +1,10 @@
+id: EXP02            # confirm with faculty/integration team
+name: ARP Spoofing
+mode: NETWORK_LAB
+services: [gateway, victim, attacker]
+network:
+  isolated: true
+  subnet: 10.10.10.0/24
+limits:
+  memory: 256m
+  cpu: 0.5
