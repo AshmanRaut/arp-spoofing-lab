@@ -1,45 +1,56 @@
-# Attacker Node — ARP Spoofing Script
+# Attacker Node — `arp_spoof.py` Control Contract
 
 ## Overview
 
-The attacker container runs `arp_spoof.py`, a self-contained Python 3 script
-that sends forged ARP replies to redirect traffic between the victim and the
-gateway through the attacker node.
+The attacker container runs `arp_spoof.py`, a self-contained Scapy script that sends forged ARP replies to redirect traffic between the victim and the gateway through the attacker node.
 
-The script requires `NET_RAW` and `NET_ADMIN` Linux capabilities (already
-granted in `docker-compose.yml`) because it opens a raw socket and writes to
-`/proc/sys/net/ipv4/ip_forward`.
+The script requires `NET_RAW` and `NET_ADMIN` Linux capabilities (already granted in `docker-compose.yml`) because it opens raw sockets to send ARP packets and writes to `/proc/sys/net/ipv4/ip_forward`.
+
+The backend (Module 2) controls poisoning **exclusively** via `docker exec` against the `attacker` container. It should never exec into `gateway` or `victim` to run attack logic.
 
 ---
 
-## Commands the backend uses (Module 2 reference)
+## Commands the Backend Uses (Module 2 Reference)
 
-### Start ARP poisoning — MITM mode
+### 1. Start ARP Poisoning — MITM Mode
 ```bash
+docker exec attacker python3 arp_spoof.py start --mode mitm
+# or
 docker exec attacker python3 /arp_spoof.py start --mode mitm
 ```
-- Enables IP forwarding inside the attacker container so packets still reach
-  their destinations (Man-in-the-Middle: intercept + forward).
-- Sends forged ARP replies every 2 s until stopped.
+- Forks and detaches inside the container, returns immediately (exit code 0, stdout prints `started background poison process, pid=<n>, mode=mitm`).
+- Enables IP forwarding inside the attacker container so packets still reach their destinations (Man-in-the-Middle: intercept + relay).
+- Sends forged ARP replies every 2 seconds until stopped.
 
-### Start ARP poisoning — DoS mode
+### 2. Start ARP Poisoning — DoS Mode
 ```bash
+docker exec attacker python3 arp_spoof.py start --mode dos
+# or
 docker exec attacker python3 /arp_spoof.py start --mode dos
 ```
-- Disables IP forwarding — traffic redirected to attacker is silently dropped
-  (Denial of Service).
+- Disables IP forwarding — traffic redirected to attacker is silently dropped (Denial of Service).
+- Sends forged ARP replies every 2 seconds until stopped.
 
-### Stop ARP poisoning
+### 3. Stop ARP Poisoning
 ```bash
+docker exec attacker python3 arp_spoof.py stop
+# or
 docker exec attacker python3 /arp_spoof.py stop
 ```
-- Writes a sentinel file and sends SIGTERM to the running start process.
-- The start process sends corrective ARP replies to restore victim/gateway
-  caches before exiting.
+- Sends `SIGTERM` to the running background process.
+- The process restores correct ARP replies to both victim and gateway to clean their tables.
+- Disables IP forwarding, removes `/tmp/arp_spoof.pid`, and exits cleanly.
+- If no attack is running, prints `no poison process is running` and exits 0 (safe to call unconditionally).
+
+### 4. Check Status
+```bash
+docker exec attacker python3 arp_spoof.py status
+```
+- Prints exactly `running` or `stopped` on stdout.
 
 ---
 
-## Environment variables (override defaults in docker-compose.yml)
+## Environment Variables (Configured in `docker-compose.yml`)
 
 | Variable     | Default       | Description               |
 |--------------|---------------|---------------------------|
@@ -49,23 +60,6 @@ docker exec attacker python3 /arp_spoof.py stop
 
 ---
 
-## How it works (no scapy required)
+## Clean-up Guarantee
 
-1. Reads the attacker's own MAC from `/sys/class/net/eth0/address`.
-2. Looks up victim and gateway MACs from `/proc/net/arp` (populated after the
-   first ICMP ping in the lab startup sequence).
-3. Constructs raw Ethernet + ARP frames (ARP Reply, OPER=2) and sends them
-   with a `AF_PACKET / SOCK_RAW` socket bound to `eth0`.
-4. Sends:
-   - To victim: "gateway IP is at attacker's MAC"
-   - To gateway: "victim IP is at attacker's MAC"
-5. Repeats every 2 s (interval configurable via `POISON_INTERVAL` constant).
-
-On stop, sends corrective replies with the real MACs to flush poisoned entries.
-
----
-
-## Clean-up guarantee
-
-`docker compose down -v` stops all containers via SIGTERM → the `start`
-loop's signal handler fires → corrective ARP replies → clean exit.
+`docker compose down -v` stops all containers via SIGTERM. The `arp_spoof.py` signal handler catches the termination signal, emits corrective ARP replies to flush poisoned entries, and exits cleanly.

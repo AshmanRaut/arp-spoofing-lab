@@ -1,22 +1,22 @@
-FROM alpine:3.19
+FROM alpine:3.20
 
-# Install Python 3, net-tools (arp command), iproute2 (ip neigh), arping, tcpdump
+# Install tools needed by attacker node:
+# python3, scapy, iproute2, net-tools (for arp -a), arping, tcpdump
 RUN apk add --no-cache \
         python3 \
         py3-pip \
         iproute2 \
         net-tools \
+        iputils \
         arping \
         tcpdump \
-        iputils
+    && pip3 install --no-cache-dir --break-system-packages scapy
 
-# Copy the ARP spoof script to the filesystem root for easy `docker exec` usage
-COPY arp_spoof.py /arp_spoof.py
-RUN chmod +x /arp_spoof.py
+# Copy the ARP spoof script to both /app and filesystem root for easy access
+COPY arp_spoof.py /app/arp_spoof.py
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /app/arp_spoof.py && \
+    ln -sf /app/arp_spoof.py /arp_spoof.py
 
-# Enable NET_ADMIN + NET_RAW capabilities (granted in docker-compose.yml)
-# The script needs:
-#   - AF_PACKET/SOCK_RAW  → NET_RAW
-#   - /proc/sys/net/ipv4/ip_forward write → NET_ADMIN
-
-CMD ["sh", "-c", "sleep infinity"]
+WORKDIR /app
+ENTRYPOINT ["/entrypoint.sh"]
