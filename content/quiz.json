@@ -1,0 +1,112 @@
+[
+  {
+    "question": "Which protocol is responsible for resolving an IP address to a MAC address on a local area network?",
+    "options": [
+      "DNS (Domain Name System)",
+      "ARP (Address Resolution Protocol)",
+      "DHCP (Dynamic Host Configuration Protocol)",
+      "ICMP (Internet Control Message Protocol)"
+    ],
+    "correctIndex": 1,
+    "explanation": "ARP (Address Resolution Protocol) operates at the Layer 2/3 boundary and resolves IP addresses to MAC addresses on a local network segment. DNS resolves hostnames to IPs; DHCP assigns IP configurations; ICMP handles error reporting and diagnostics."
+  },
+  {
+    "question": "At which OSI layer does ARP Cache Poisoning primarily operate?",
+    "options": [
+      "Layer 3 — Network",
+      "Layer 4 — Transport",
+      "Layer 2 — Data Link",
+      "Layer 7 — Application"
+    ],
+    "correctIndex": 2,
+    "explanation": "ARP poisoning is a Layer 2 (Data Link) attack because it manipulates MAC-address-to-IP mappings used by the Ethernet/switching layer. It exploits the lack of authentication in the ARP protocol, which lives at the Data Link layer boundary."
+  },
+  {
+    "question": "What is a Gratuitous ARP?",
+    "options": [
+      "An ARP Request broadcasted when a device first joins the network",
+      "An ARP Reply sent without a preceding ARP Request, announcing a device's own IP-to-MAC mapping",
+      "A special ARP message used only by routers to maintain routing tables",
+      "An encrypted ARP packet used in secure networks"
+    ],
+    "correctIndex": 1,
+    "explanation": "A Gratuitous ARP is an ARP Reply sent unprompted — without any preceding ARP Request. Devices use it legitimately to detect IP conflicts or announce a MAC address change. Attackers exploit it to silently overwrite other devices' ARP caches."
+  },
+  {
+    "question": "Why is the ARP protocol inherently vulnerable to spoofing attacks?",
+    "options": [
+      "ARP packets are too large for typical network buffers",
+      "ARP uses UDP which is unreliable",
+      "ARP has no cryptographic authentication; any device can claim any IP-to-MAC mapping",
+      "ARP entries are stored permanently and can never be updated"
+    ],
+    "correctIndex": 2,
+    "explanation": "ARP was designed in 1982 for trusted small LANs and includes no authentication mechanism. Any host on the network can broadcast an ARP Reply claiming any IP address, and all other hosts will accept and cache the mapping without verification."
+  },
+  {
+    "question": "Scenario: You examine the ARP table on a victim machine (10.10.10.10) and find that both 10.10.10.1 (gateway) and 10.10.10.66 (attacker) resolve to the same MAC address: 02:42:ac:0a:0a:42. What has most likely happened?",
+    "options": [
+      "The gateway and attacker share a network interface (normal behavior)",
+      "The victim has manually configured a static ARP entry",
+      "An ARP Cache Poisoning attack has caused the attacker's MAC to be associated with the gateway's IP",
+      "The DHCP server assigned the same IP to two devices"
+    ],
+    "correctIndex": 2,
+    "explanation": "When two different IP addresses resolve to the same MAC address in an ARP table, it strongly indicates ARP poisoning. The attacker sent forged ARP Replies claiming to be the gateway, so the victim's traffic destined for 10.10.10.1 is now delivered to the attacker's NIC."
+  },
+  {
+    "question": "In a Man-in-the-Middle ARP attack, what must the attacker do to avoid disrupting the victim's connectivity while intercepting traffic?",
+    "options": [
+      "Disable the victim's network interface",
+      "Enable IP forwarding on the attacker's machine so intercepted packets are relayed to the real destination",
+      "Block all ARP traffic on the network segment",
+      "Assign itself the gateway's IP address permanently"
+    ],
+    "correctIndex": 1,
+    "explanation": "In MITM mode, the attacker enables IP forwarding. Packets from the victim arrive at the attacker's NIC (because the victim's ARP cache says the gateway's IP = attacker's MAC), the attacker inspects or modifies them, then forwards them to the real gateway — keeping the connection alive while performing interception."
+  },
+  {
+    "question": "Scenario: After an ARP poisoning attack begins, the victim can no longer reach any external websites, and all pings to the gateway time out. The attacker's machine is NOT forwarding any packets. What type of attack is this?",
+    "options": [
+      "Man-in-the-Middle (MITM) attack",
+      "Denial of Service (DoS) via ARP poisoning",
+      "DNS Hijacking",
+      "Port Scan"
+    ],
+    "correctIndex": 1,
+    "explanation": "When an ARP poisoning attack is configured with IP forwarding disabled (or packets actively dropped), the victim's traffic is redirected to the attacker but never forwarded to the real gateway. This results in a Denial of Service — the victim loses all network connectivity — rather than silent interception."
+  },
+  {
+    "question": "Which defensive technique involves a managed switch validating ARP packets against a trusted DHCP binding table and dropping those that don't match?",
+    "options": [
+      "Static ARP entries",
+      "Port Security",
+      "Dynamic ARP Inspection (DAI)",
+      "802.1X Network Access Control"
+    ],
+    "correctIndex": 2,
+    "explanation": "Dynamic ARP Inspection (DAI) is a Cisco/managed-switch feature that inspects every ARP packet on untrusted switch ports. It cross-references the claimed IP-MAC pair against the DHCP Snooping Binding Table. Mismatches are dropped and logged, effectively preventing ARP poisoning at the switch level."
+  },
+  {
+    "question": "An attacker successfully executes an ARP Cache Poisoning MITM attack and intercepts all traffic between a victim and their bank's website. The bank uses HTTPS with a valid TLS certificate. What data can the attacker realistically read?",
+    "options": [
+      "Full plaintext usernames, passwords, and account numbers",
+      "Only the victim's IP and MAC address",
+      "Only the hostname of the bank's website (via SNI) and encrypted ciphertext — not the payload content",
+      "Nothing at all, since ARP operates below the network layer"
+    ],
+    "correctIndex": 2,
+    "explanation": "HTTPS/TLS encrypts the payload end-to-end. Even positioned in-path via ARP poisoning, the attacker only sees encrypted ciphertext and possibly the Server Name Indication (SNI) field in the TLS handshake. Without the server's private key, the attacker cannot decrypt the content. The attack still allows traffic analysis and potential SSL-stripping (which the user's browser should warn about)."
+  },
+  {
+    "question": "How does adding a static ARP entry on the victim protect against ARP Cache Poisoning?",
+    "options": [
+      "It encrypts all ARP traffic leaving the victim",
+      "It permanently binds an IP address to a specific MAC in the victim's ARP table, so incoming forged ARP Replies cannot overwrite it",
+      "It prevents the victim from receiving any ARP broadcast packets",
+      "It notifies the network administrator whenever an ARP Reply is received"
+    ],
+    "correctIndex": 1,
+    "explanation": "A static ARP entry is a manually configured, permanent IP-to-MAC binding that the operating system treats as authoritative. Unlike dynamic entries, static entries are not overwritten when forged ARP Replies arrive, making ARP poisoning ineffective for those specific entries. The limitation is that static entries must be configured on every device and updated whenever a MAC address changes."
+  }
+]
