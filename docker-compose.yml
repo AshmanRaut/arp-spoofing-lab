@@ -1,0 +1,66 @@
+services:
+
+  gateway:
+    build: ./nodes/gateway
+    container_name: gateway
+    hostname: gateway
+    networks:
+      arp-lab-net:
+        ipv4_address: 10.10.10.1
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+    tty: true
+    # no ports published: this node is reached only inside arp-lab-net
+
+  victim:
+    build: ./nodes/victim
+    container_name: victim
+    hostname: victim
+    networks:
+      arp-lab-net:
+        ipv4_address: 10.10.10.10
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+    tty: true
+    depends_on:
+      - gateway
+
+  attacker:
+    build: ./nodes/attacker
+    container_name: attacker
+    hostname: attacker
+    networks:
+      arp-lab-net:
+        ipv4_address: 10.10.10.66
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+    tty: true
+    depends_on:
+      - gateway
+      - victim
+    # The Module 2 backend controls this container with:
+    #   docker exec attacker python3 arp_spoof.py start --mode mitm|dos
+    #   docker exec attacker python3 arp_spoof.py stop
+    # See nodes/attacker/README.md for the full contract.
+
+networks:
+  arp-lab-net:
+    driver: bridge
+    internal: true          # hard isolation: no route to host LAN or internet
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.10.0/24
+          gateway: 10.10.10.254
