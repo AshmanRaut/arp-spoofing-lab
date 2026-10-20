@@ -17,18 +17,11 @@ const realMacs = {
   attacker: '',
 };
 
-/* ─── Node positions in SVG (520 × 320 viewBox) ─────────────── */
+/* ─── Node metadata in SVG (680 × 430 viewBox) ─────────────── */
 const NODES = [
-  { key: 'victim',   label: 'Victim',   ip: '10.10.10.10', x: 100, y: 160 },
-  { key: 'gateway',  label: 'Gateway',  ip: '10.10.10.1',  x: 420, y:  75 },
-  { key: 'attacker', label: 'Attacker', ip: '10.10.10.66', x: 420, y: 245 },
-];
-
-/* Maps: from-node → to-node, which mac-slot to check */
-const LINKS = [
-  { from: NODES[0], to: NODES[1], owner: 'gateway'  },
-  { from: NODES[1], to: NODES[0], owner: 'victim'   },
-  { from: NODES[0], to: NODES[2], owner: 'attacker' },
+  { key: 'victim',   label: 'Victim Target',    ip: '10.10.10.10', x: 125, y: 112 },
+  { key: 'gateway',  label: 'Default Gateway',  ip: '10.10.10.1',  x: 555, y: 112 },
+  { key: 'attacker', label: 'Attacker Machine', ip: '10.10.10.66', x: 340, y: 327 },
 ];
 
 /* ─── Application state ─────────────────────────────────────── */
@@ -48,7 +41,6 @@ const state = {
   quizScore:    0,
   feedbackRating: 0,
   feedbackSubmitted: false,
-  modulesOpen:  true,
   controlsOpen: true,
   logOpen:      true,
 };
@@ -381,108 +373,300 @@ function renderButtons() {
   });
 }
 
-/* SVG topology diagram */
+/* Helper to safely set dynamic SVG content while maintaining proper SVG namespace */
+function setSvgContent(svg, markup) {
+  let layer = $('#topology-dynamic-layer', svg);
+  if (!layer) {
+    layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    layer.id = 'topology-dynamic-layer';
+    svg.appendChild(layer);
+  }
+  layer.innerHTML = markup;
+}
+
+/* SVG topology diagram with animated packet flows and dynamic attack mechanics */
 function renderDiagram() {
   const svg = $('#topology-svg');
   if (!svg) return;
 
-  /* clear old dynamic elements */
-  $$('.dyn', svg).forEach(el => el.remove());
+  const attackerMac = (state.realMacs.attacker || '').toLowerCase();
+  const gatewayRealMac = (state.realMacs.gateway || '').toLowerCase();
+  const victimRealMac = (state.realMacs.victim || '').toLowerCase();
 
-  /* Background grid */
-  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  bg.setAttribute('width', '520'); bg.setAttribute('height', '320');
-  bg.setAttribute('fill', '#FDFBF9'); bg.setAttribute('rx', '14');
-  bg.classList.add('dyn');
-  svg.prepend(bg);
+  const victimGwMac = state.arpTables.victim?.['10.10.10.1'] || '';
+  const gwVictimMac = state.arpTables.gateway?.['10.10.10.10'] || '';
 
-  /* Edges */
-  LINKS.forEach(link => {
-    const targetIp = link.to.ip;
-    const fromTable = state.arpTables[link.from.key] || {};
-    const currentMac = fromTable[targetIp];
+  let isVictimPoisoned = false;
+  if (victimGwMac) {
+    const norm = victimGwMac.toLowerCase();
+    if (attackerMac && norm === attackerMac) isVictimPoisoned = true;
+    else if (gatewayRealMac && norm !== gatewayRealMac) isVictimPoisoned = true;
+  }
 
-    let poisoned = false;
-    if (currentMac) {
-      const normCurrent = currentMac.toLowerCase();
-      const attackerMac = (state.realMacs.attacker || '').toLowerCase();
-      const targetRealMac = (state.realMacs[link.to.key] || '').toLowerCase();
+  let isGwPoisoned = false;
+  if (gwVictimMac) {
+    const norm = gwVictimMac.toLowerCase();
+    if (attackerMac && norm === attackerMac) isGwPoisoned = true;
+    else if (victimRealMac && norm !== victimRealMac) isGwPoisoned = true;
+  }
 
-      if (link.owner !== 'attacker') {
-        if (attackerMac && normCurrent === attackerMac) {
-          poisoned = true;
-        } else if (targetRealMac && normCurrent !== targetRealMac) {
-          poisoned = true;
-        }
-      }
+  const isAttacking = state.attackActive;
+  const isMitigated = state.mitigationOn;
+  const attackMode = state.attackMode || 'mitm';
+  const isMitm = attackMode === 'mitm';
+  const isDos = attackMode === 'dos';
+
+  // Node styles
+  const vBorder = isMitigated ? '#2563EB' : (isVictimPoisoned ? '#E06C62' : '#2A8C76');
+  const vBg = isMitigated ? '#EFF6FF' : (isVictimPoisoned ? '#FEF2F2' : '#F4FAF8');
+  const vBadgeText = isMitigated ? '🛡️ Protected (Static)' : (isVictimPoisoned ? '⚠️ POISONED!' : '✓ Authentic Gateway');
+  const vBadgeBg = isMitigated ? '#DBEAFE' : (isVictimPoisoned ? '#FEE2E2' : '#E8F5F1');
+  const vBadgeColor = isMitigated ? '#1D4ED8' : (isVictimPoisoned ? '#B91C1C' : '#1B6554');
+  const vClass = isVictimPoisoned && !isMitigated ? 'node-poison-pulse' : (isMitigated ? 'node-shield-pulse' : '');
+
+  const gBorder = isMitigated ? '#2563EB' : (isGwPoisoned ? '#E06C62' : '#2A8C76');
+  const gBg = isMitigated ? '#EFF6FF' : (isGwPoisoned ? '#FEF2F2' : '#F4FAF8');
+  const gBadgeText = isMitigated ? '🛡️ Protected (Static)' : (isGwPoisoned ? '⚠️ POISONED!' : '✓ Authentic Victim');
+  const gBadgeBg = isMitigated ? '#DBEAFE' : (isGwPoisoned ? '#FEE2E2' : '#E8F5F1');
+  const gBadgeColor = isMitigated ? '#1D4ED8' : (isGwPoisoned ? '#B91C1C' : '#1B6554');
+  const gClass = isGwPoisoned && !isMitigated ? 'node-poison-pulse' : (isMitigated ? 'node-shield-pulse' : '');
+
+  const aBorder = isAttacking ? '#E06C62' : '#64748B';
+  const aBg = isAttacking ? '#FEF2F2' : '#F8FAFC';
+  const aBadgeText = !isAttacking ? '💤 Standby / Idle' : (isMitm ? '⚡ MITM: Relaying (ip_forward=1)' : '🚫 DoS: Dropping (ip_forward=0)');
+  const aBadgeBg = !isAttacking ? '#F1F5F9' : (isMitm ? '#FEF3C7' : '#FEE2E2');
+  const aBadgeColor = !isAttacking ? '#475569' : (isMitm ? '#B45309' : '#B91C1C');
+  const aClass = isAttacking ? 'node-poison-pulse' : '';
+
+  let markup = `
+    <!-- Background Grid -->
+    <rect width="680" height="430" rx="14" fill="#FDFBF9" />
+
+    <!-- ── Direct Communication Channel (Victim ↔ Gateway) ── -->
+  `;
+
+  if (!isVictimPoisoned && !isGwPoisoned) {
+    markup += `
+      <g>
+        <line x1="215" y1="112" x2="465" y2="112" stroke="#2A8C76" stroke-width="3" />
+        <circle r="5" fill="#10B981" filter="url(#packetGlow)">
+          <animateMotion path="M 215 106 L 465 106" dur="2s" repeatCount="indefinite" />
+        </circle>
+        <circle r="5" fill="#06B6D4" filter="url(#packetGlow)">
+          <animateMotion path="M 465 118 L 215 118" dur="2s" begin="1s" repeatCount="indefinite" />
+        </circle>
+        <rect x="250" y="99" width="180" height="26" rx="13" fill="#FFFFFF" stroke="#2A8C76" stroke-width="1.5" />
+        <text x="340" y="116" text-anchor="middle" font-size="10" font-weight="700" fill="#1B6554" font-family="'Noto Sans', sans-serif">Direct IP/ICMP Traffic</text>
+      </g>
+    `;
+  } else {
+    if (isMitigated) {
+      markup += `
+        <g>
+          <line x1="215" y1="112" x2="465" y2="112" stroke="#2563EB" stroke-width="3" />
+          <circle r="5" fill="#3B82F6" filter="url(#packetGlow)">
+            <animateMotion path="M 215 106 L 465 106" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle r="5" fill="#60A5FA" filter="url(#packetGlow)">
+            <animateMotion path="M 465 118 L 215 118" dur="2s" begin="1s" repeatCount="indefinite" />
+          </circle>
+          <rect x="245" y="99" width="190" height="26" rx="13" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.5" />
+          <text x="340" y="116" text-anchor="middle" font-size="10" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">🛡️ Protected Direct Traffic</text>
+        </g>
+      `;
+    } else if (isMitm) {
+      markup += `
+        <g>
+          <line x1="215" y1="112" x2="465" y2="112" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="5 5" />
+          <rect x="230" y="99" width="220" height="26" rx="13" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1.5" />
+          <text x="340" y="116" text-anchor="middle" font-size="9.5" font-weight="700" fill="#B45309" font-family="'Noto Sans', sans-serif">Direct Path Severed (Traffic Diverted)</text>
+        </g>
+      `;
+    } else {
+      markup += `
+        <g>
+          <line x1="215" y1="112" x2="465" y2="112" stroke="#FCA5A5" stroke-width="2" stroke-dasharray="5 5" />
+          <rect x="230" y="99" width="220" height="26" rx="13" fill="#FEF2F2" stroke="#EF4444" stroke-width="1.5" />
+          <text x="340" y="116" text-anchor="middle" font-size="9.5" font-weight="700" fill="#B91C1C" font-family="'Noto Sans', sans-serif">❌ Connection Timed Out (Blackholed)</text>
+        </g>
+      `;
     }
-    const color      = poisoned ? '#E06C62' : '#2A8C76';
-    const midX       = (link.from.x + link.to.x) / 2;
-    const midY       = (link.from.y + link.to.y) / 2;
-    const markerId   = poisoned ? 'coral-arrow' : 'teal-arrow';
+  }
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.classList.add('dyn');
+  // ── Poisoning Attacks (Attacker ➔ Victim & Attacker ➔ Gateway) ──
+  if (isAttacking) {
+    if (!isMitigated) {
+      markup += `
+        <!-- Left Poisoning Curve (Attacker -> Victim) -->
+        <g>
+          <path d="M 280 260 Q 200 220 165 180" fill="none" stroke="#E06C62" stroke-width="2.5" stroke-dasharray="6 5" class="flow-dash-fast" marker-end="url(#coral-arrow)" />
+          <circle r="5" fill="#EF4444" filter="url(#packetGlow)">
+            <animateMotion path="M 280 260 Q 200 220 165 180" dur="1.2s" repeatCount="indefinite" />
+          </circle>
+          <rect x="120" y="198" width="168" height="20" rx="10" fill="#FEF2F2" stroke="#E06C62" stroke-width="1" />
+          <text x="204" y="212" text-anchor="middle" font-size="8" font-weight="700" fill="#B91C1C" font-family="'JetBrains Mono', monospace">⚡ Forged ARP: 10.10.10.1=Attacker</text>
+        </g>
 
-    /* Line */
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', link.from.x); line.setAttribute('y1', link.from.y);
-    line.setAttribute('x2', link.to.x);   line.setAttribute('y2', link.to.y);
-    line.setAttribute('stroke', color);
-    line.setAttribute('stroke-width', '2');
-    if (poisoned) line.setAttribute('stroke-dasharray', '6 5');
-    line.setAttribute('marker-end', `url(#${markerId})`);
+        <!-- Right Poisoning Curve (Attacker -> Gateway) -->
+        <g>
+          <path d="M 400 260 Q 480 220 515 180" fill="none" stroke="#E06C62" stroke-width="2.5" stroke-dasharray="6 5" class="flow-dash-fast" marker-end="url(#coral-arrow)" />
+          <circle r="5" fill="#EF4444" filter="url(#packetGlow)">
+            <animateMotion path="M 400 260 Q 480 220 515 180" dur="1.2s" repeatCount="indefinite" />
+          </circle>
+          <rect x="392" y="198" width="168" height="20" rx="10" fill="#FEF2F2" stroke="#E06C62" stroke-width="1" />
+          <text x="476" y="212" text-anchor="middle" font-size="8" font-weight="700" fill="#B91C1C" font-family="'JetBrains Mono', monospace">⚡ Forged ARP: 10.10.10.10=Attacker</text>
+        </g>
+      `;
+    } else {
+      markup += `
+        <!-- Left Poisoning Curve Deflected -->
+        <g>
+          <path d="M 280 260 Q 200 220 175 195" fill="none" stroke="#E06C62" stroke-width="1.8" stroke-dasharray="4 4" opacity="0.5" />
+          <g transform="translate(145, 182)">
+            <circle cx="12" cy="12" r="14" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" class="node-shield-pulse" />
+            <text x="12" y="17" text-anchor="middle" font-size="12">🛡️</text>
+            <rect x="-35" y="28" width="94" height="18" rx="9" fill="#EFF6FF" stroke="#2563EB" stroke-width="0.8" />
+            <text x="12" y="40" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">Static ARP Blocked</text>
+          </g>
+        </g>
 
-    /* Label pill background */
-    const pill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    pill.setAttribute('x', midX - 44); pill.setAttribute('y', midY - 16);
-    pill.setAttribute('width', '88'); pill.setAttribute('height', '18');
-    pill.setAttribute('rx', '9'); pill.setAttribute('fill', '#FFFFFF');
-    pill.setAttribute('stroke', color); pill.setAttribute('stroke-width', '1');
+        <!-- Right Poisoning Curve Deflected -->
+        <g>
+          <path d="M 400 260 Q 480 220 505 195" fill="none" stroke="#E06C62" stroke-width="1.8" stroke-dasharray="4 4" opacity="0.5" />
+          <g transform="translate(515, 182)">
+            <circle cx="12" cy="12" r="14" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" class="node-shield-pulse" />
+            <text x="12" y="17" text-anchor="middle" font-size="12">🛡️</text>
+            <rect x="-35" y="28" width="94" height="18" rx="9" fill="#EFF6FF" stroke="#2563EB" stroke-width="0.8" />
+            <text x="12" y="40" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">Static ARP Blocked</text>
+          </g>
+        </g>
+      `;
+    }
+  }
 
-    /* Label text */
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('x', midX); label.setAttribute('y', midY - 4);
-    label.setAttribute('fill', color);
-    label.setAttribute('text-anchor', 'middle');
-    label.setAttribute('font-size', '8.5');
-    label.setAttribute('font-family', "'JetBrains Mono', monospace");
-    label.textContent = currentMac ? currentMac : 'awaiting ARP';
+  // ── Hijacked Traffic Flows ──
+  if (isVictimPoisoned && !isMitigated) {
+    markup += `
+      <!-- Intercepted Frame: Victim -> Attacker -->
+      <g>
+        <path d="M 100 180 Q 95 280 230 320" fill="none" stroke="#F59E0B" stroke-width="2.8" stroke-dasharray="7 5" class="flow-dash" marker-end="url(#amber-arrow)" />
+        <circle r="5.5" fill="#F59E0B" filter="url(#packetGlow)">
+          <animateMotion path="M 100 180 Q 95 280 230 320" dur="1.5s" repeatCount="indefinite" />
+        </circle>
+        <rect x="25" y="248" width="185" height="20" rx="10" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1" />
+        <text x="117" y="262" text-anchor="middle" font-size="8" font-weight="700" fill="#92400E" font-family="'Noto Sans', sans-serif">① Intercepted Frame (Dst MAC=Attacker)</text>
+      </g>
+    `;
 
-    g.append(line, pill, label);
-    svg.appendChild(g);
-  });
+    if (isMitm) {
+      markup += `
+        <!-- Relayed Frame: Attacker -> Gateway -->
+        <g>
+          <path d="M 450 320 Q 585 280 580 180" fill="none" stroke="#8B5CF6" stroke-width="2.8" stroke-dasharray="7 5" class="flow-dash" marker-end="url(#purple-arrow)" />
+          <circle r="5.5" fill="#8B5CF6" filter="url(#packetGlow)">
+            <animateMotion path="M 450 320 Q 585 280 580 180" dur="1.5s" begin="0.3s" repeatCount="indefinite" />
+          </circle>
+          <rect x="470" y="248" width="185" height="20" rx="10" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1" />
+          <text x="562" y="262" text-anchor="middle" font-size="8" font-weight="700" fill="#5B21B6" font-family="'Noto Sans', sans-serif">② Relayed to Gateway (ip_forward=1)</text>
+        </g>
+      `;
+    } else if (isDos) {
+      markup += `
+        <!-- Blackhole Drop Zone at Attacker -->
+        <g transform="translate(230, 292)">
+          <circle cx="14" cy="14" r="14" fill="#FEE2E2" stroke="#EF4444" stroke-width="2" class="node-poison-pulse" />
+          <text x="14" y="19" text-anchor="middle" font-size="14" font-weight="900" fill="#DC2626">✕</text>
+          <rect x="34" y="4" width="165" height="20" rx="10" fill="#FEF2F2" stroke="#EF4444" stroke-width="1" />
+          <text x="116" y="18" text-anchor="middle" font-size="8" font-weight="700" fill="#B91C1C" font-family="'Noto Sans', sans-serif">② BLACKHOLE: Packets Dropped (ip_forward=0)</text>
+        </g>
+      `;
+    }
+  }
 
-  /* Nodes */
-  NODES.forEach(node => {
-    const isAttacker = node.key === 'attacker';
-    const fill   = isAttacker ? '#FDF0EF' : '#EBF7F4';
-    const stroke = isAttacker ? '#E06C62' : '#2A8C76';
+  // ── Node Cards ──
+  markup += `
+    <!-- ── VICTIM NODE ── -->
+    <g>
+      <rect x="35" y="45" width="180" height="135" rx="12" fill="${vBg}" stroke="${vBorder}" stroke-width="2" class="${vClass}" />
+      <g transform="translate(48, 56)">
+        <rect x="0" y="0" width="28" height="28" rx="6" fill="#FFFFFF" stroke="${vBorder}" stroke-width="1.2" />
+        <text x="14" y="19" text-anchor="middle" font-size="14">💻</text>
+        <text x="36" y="14" font-size="13" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Victim Target</text>
+        <text x="36" y="26" font-size="9" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.10</text>
+      </g>
+      <text x="48" y="99" font-size="8.5" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="600" fill="#111827">${state.realMacs.victim || 'detecting...'}</tspan></text>
+      <line x1="48" y1="106" x2="202" y2="106" stroke="${vBorder}" stroke-width="0.8" opacity="0.4" />
+      <text x="48" y="121" font-size="8" font-weight="700" fill="#6B7280" font-family="'Noto Sans', sans-serif">KERNEL ARP TABLE (10.10.10.1):</text>
+      <text x="48" y="136" font-size="9" font-family="'JetBrains Mono', monospace" font-weight="700" fill="${isVictimPoisoned && !isMitigated ? '#DC2626' : '#111827'}">${victimGwMac || 'No ARP entry'}</text>
+      <rect x="48" y="146" width="154" height="22" rx="11" fill="${vBadgeBg}" stroke="${vBadgeColor}" stroke-width="0.8" />
+      <text x="125" y="161" text-anchor="middle" font-size="8.5" font-weight="700" fill="${vBadgeColor}" font-family="'Noto Sans', sans-serif">${vBadgeText}</text>
+    </g>
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.classList.add('dyn');
+    <!-- ── GATEWAY NODE ── -->
+    <g>
+      <rect x="465" y="45" width="180" height="135" rx="12" fill="${gBg}" stroke="${gBorder}" stroke-width="2" class="${gClass}" />
+      <g transform="translate(478, 56)">
+        <rect x="0" y="0" width="28" height="28" rx="6" fill="#FFFFFF" stroke="${gBorder}" stroke-width="1.2" />
+        <text x="14" y="19" text-anchor="middle" font-size="14">🌐</text>
+        <text x="36" y="14" font-size="13" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Default Gateway</text>
+        <text x="36" y="26" font-size="9" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.1</text>
+      </g>
+      <text x="478" y="99" font-size="8.5" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="600" fill="#111827">${state.realMacs.gateway || 'detecting...'}</tspan></text>
+      <line x1="478" y1="106" x2="632" y2="106" stroke="${gBorder}" stroke-width="0.8" opacity="0.4" />
+      <text x="478" y="121" font-size="8" font-weight="700" fill="#6B7280" font-family="'Noto Sans', sans-serif">KERNEL ARP TABLE (10.10.10.10):</text>
+      <text x="478" y="136" font-size="9" font-family="'JetBrains Mono', monospace" font-weight="700" fill="${isGwPoisoned && !isMitigated ? '#DC2626' : '#111827'}">${gwVictimMac || 'No ARP entry'}</text>
+      <rect x="478" y="146" width="154" height="22" rx="11" fill="${gBadgeBg}" stroke="${gBadgeColor}" stroke-width="0.8" />
+      <text x="555" y="161" text-anchor="middle" font-size="8.5" font-weight="700" fill="${gBadgeColor}" font-family="'Noto Sans', sans-serif">${gBadgeText}</text>
+    </g>
 
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y); circle.setAttribute('r', '42');
-    circle.setAttribute('fill', fill); circle.setAttribute('stroke', stroke); circle.setAttribute('stroke-width', '2.5');
+    <!-- ── ATTACKER NODE ── -->
+    <g>
+      <rect x="230" y="260" width="220" height="135" rx="12" fill="${aBg}" stroke="${aBorder}" stroke-width="2" class="${aClass}" />
+      <g transform="translate(243, 271)">
+        <rect x="0" y="0" width="28" height="28" rx="6" fill="#FFFFFF" stroke="${aBorder}" stroke-width="1.2" />
+        <text x="14" y="19" text-anchor="middle" font-size="14">⚡</text>
+        <text x="36" y="14" font-size="13" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Attacker Machine</text>
+        <text x="36" y="26" font-size="9" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.66</text>
+      </g>
+      <text x="243" y="314" font-size="8.5" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="600" fill="#111827">${state.realMacs.attacker || 'detecting...'}</tspan></text>
+      <line x1="243" y1="321" x2="437" y2="321" stroke="${aBorder}" stroke-width="0.8" opacity="0.4" />
+      <text x="243" y="337" font-size="8" font-weight="700" fill="#6B7280" font-family="'Noto Sans', sans-serif">SCAPY RAW SOCKET ENGINE (arp_spoof.py):</text>
+      <text x="243" y="351" font-size="8.5" font-family="'Noto Sans', sans-serif" fill="#4B5563">${!isAttacking ? 'Awaiting attack launch command...' : (isMitm ? 'Intercepting frames & relaying via kernel' : 'Blackholing frames (ip_forward=0)')}</text>
+      <rect x="243" y="361" width="194" height="22" rx="11" fill="${aBadgeBg}" stroke="${aBadgeColor}" stroke-width="0.8" />
+      <text x="340" y="376" text-anchor="middle" font-size="8.5" font-weight="700" fill="${aBadgeColor}" font-family="'Noto Sans', sans-serif">${aBadgeText}</text>
+    </g>
+  `;
 
-    const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    nameText.setAttribute('x', node.x); nameText.setAttribute('y', node.y - 4);
-    nameText.setAttribute('fill', '#1F1F1F'); nameText.setAttribute('text-anchor', 'middle');
-    nameText.setAttribute('font-size', '13'); nameText.setAttribute('font-weight', '700');
-    nameText.setAttribute('font-family', "'Noto Sans', sans-serif");
-    nameText.textContent = node.label;
+  setSvgContent(svg, markup);
 
-    const ipText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    ipText.setAttribute('x', node.x); ipText.setAttribute('y', node.y + 13);
-    ipText.setAttribute('fill', '#666666'); ipText.setAttribute('text-anchor', 'middle');
-    ipText.setAttribute('font-size', '9');
-    ipText.setAttribute('font-family', "'JetBrains Mono', monospace");
-    ipText.textContent = node.ip;
+  // Update topology card header badge & explainer text
+  const badgeEl = $('#topology-attack-badge');
+  const explainerEl = $('#explainer-status-text');
 
-    g.append(circle, nameText, ipText);
-    svg.appendChild(g);
-  });
+  if (badgeEl) {
+    if (isMitigated) {
+      badgeEl.textContent = 'Protected (Static ARP)';
+      badgeEl.className = 'badge-tag tag-blue';
+    } else if (isAttacking) {
+      badgeEl.textContent = isMitm ? 'MITM Attack: Intercepting & Relaying' : 'DoS Attack: Packet Blackhole';
+      badgeEl.className = isMitm ? 'badge-tag tag-amber' : 'badge-tag tag-red';
+    } else {
+      badgeEl.textContent = 'Normal Direct Traffic';
+      badgeEl.className = 'badge-tag tag-teal';
+    }
+  }
+
+  if (explainerEl) {
+    if (isMitigated) {
+      explainerEl.innerHTML = `<strong>Active Defense:</strong> Static ARP entries are pinned in kernel neighbor tables (<code>PERMANENT</code>). Unsolicited forged ARP replies sent by the attacker are silently ignored by both Victim and Gateway, maintaining authentic direct communication.`;
+    } else if (isAttacking && isMitm) {
+      explainerEl.innerHTML = `<strong>MITM Attack in Progress:</strong> The Attacker poisoned both victim and gateway ARP caches. When the Victim sends packets to 10.10.10.1, Layer 2 Ethernet frames are physically addressed to the Attacker's MAC. The Attacker's kernel forwards the frames (<code>net.ipv4.ip_forward = 1</code>) to the Gateway, allowing complete eavesdropping without dropping connections.`;
+    } else if (isAttacking && isDos) {
+      explainerEl.innerHTML = `<strong>Denial of Service in Progress:</strong> The Attacker poisoned the Victim's ARP cache. The Victim transmits frames to the Attacker's MAC, but with kernel forwarding disabled (<code>net.ipv4.ip_forward = 0</code>), the Attacker silently drops all packets. The Victim experiences 100% packet loss and complete network isolation.`;
+    } else {
+      explainerEl.innerHTML = `<strong>Authentic LAN State:</strong> Legitimate Layer 2 communication. The Victim and Gateway resolve IP-to-MAC addresses through genuine ARP exchanges, and data packets (ICMP ping and TCP probes) flow directly between them.`;
+    }
+  }
 }
 
 /* Activity log */
@@ -733,46 +917,58 @@ function buildUI() {
           <!-- LEFT: Topology diagram -->
           <div class="topology-card">
             <div class="topology-card-header">
-              <span class="title">Live Topology</span>
-              <span class="subtitle">ARP Network Map</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="title">Live ARP Network Map</span>
+                <span id="topology-attack-badge" class="badge-tag tag-teal">Normal Direct Traffic</span>
+              </div>
+              <span class="subtitle">10.10.10.0/24 Isolated Bridge</span>
             </div>
             <div class="topology-svg-wrap">
-              <svg id="topology-svg" viewBox="0 0 520 320" role="img" aria-label="Live ARP network diagram">
+              <svg id="topology-svg" viewBox="0 0 680 430" role="img" aria-label="Live ARP network topology diagram">
                 <defs>
-                  <marker id="teal-arrow"  markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                  <marker id="teal-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
                     <path d="M0,0 L0,6 L7,3 z" fill="#2A8C76"/>
                   </marker>
                   <marker id="coral-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
                     <path d="M0,0 L0,6 L7,3 z" fill="#E06C62"/>
                   </marker>
+                  <marker id="amber-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L7,3 z" fill="#F59E0B"/>
+                  </marker>
+                  <marker id="purple-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L7,3 z" fill="#8B5CF6"/>
+                  </marker>
+                  <filter id="packetGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="2" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
                   <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
                     <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#EAE6E2" stroke-width="0.5"/>
                   </pattern>
                 </defs>
-                <!-- static background — dynamic nodes/edges injected by renderDiagram() -->
-                <rect width="520" height="320" fill="url(#grid)" rx="14"/>
+                <rect width="680" height="430" fill="url(#grid)" rx="14"/>
+                <g id="topology-dynamic-layer"></g>
               </svg>
             </div>
-            <p class="topology-footer">Edges update only from backend ARP events. No live data is fabricated.</p>
+            <div class="topology-explainer" id="topology-explainer">
+              <div class="explainer-status" id="explainer-status-text">
+                <strong>Current State:</strong> Normal Direct Traffic — Victim and Gateway communicate directly using authentic ARP bindings.
+              </div>
+              <div class="topology-legend">
+                <span class="legend-item"><span class="legend-dot dot-teal"></span> Genuine IP/ICMP Traffic</span>
+                <span class="legend-item"><span class="legend-dot dot-coral"></span> Forged ARP Replies (Spoofing)</span>
+                <span class="legend-item"><span class="legend-dot dot-amber"></span> Intercepted L2 Frames</span>
+                <span class="legend-item"><span class="legend-dot dot-purple"></span> MITM Relayed Frames</span>
+                <span class="legend-item"><span class="legend-dot dot-shield"></span> Static ARP Protected</span>
+              </div>
+            </div>
           </div>
 
           <!-- RIGHT: Sidebar -->
           <div class="sidebar">
-
-            <!-- Lab Modules collapsible -->
-            <div>
-              <button class="section-header-strip" id="modules-toggle" aria-expanded="true">
-                <span>Lab Modules</span>
-                <span class="chevron-circle">▾</span>
-              </button>
-              <div id="modules-body" class="modules-list">
-                ${TABS.map(t => `
-                  <button class="module-card" data-tab="${t}">
-                    <span class="icon-badge">${MODULE_ICONS[t]}</span>
-                    <span style="font-size:13px;font-weight:500">${t}</span>
-                  </button>`).join('')}
-              </div>
-            </div>
 
             <!-- Controls collapsible -->
             <div class="controls-panel">
@@ -926,19 +1122,7 @@ function wireEvents() {
     });
   });
 
-  /* Module card clicks (sidebar) */
-  document.addEventListener('click', (e) => {
-    const card = e.target.closest('.module-card');
-    if (!card) return;
-    state.activeTab = card.dataset.tab;
-    renderTabs();
-    if (state.activeTab === 'Assignment') renderQuiz();
-  });
-
   /* Collapsible sections */
-  $('#modules-toggle').addEventListener('click', (e) => {
-    toggleSection('modulesOpen', e.currentTarget, 'modules-body');
-  });
   $('#controls-toggle').addEventListener('click', (e) => {
     toggleSection('controlsOpen', e.currentTarget, 'controls-body');
   });

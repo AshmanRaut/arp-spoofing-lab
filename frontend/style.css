@@ -420,12 +420,100 @@ ul, ol { list-style: none; }
 .topology-svg-wrap {
   flex: 1;
   padding: 8px 16px;
+  background: #FCFBF9;
 }
-.topology-svg-wrap svg { width: 100%; }
-.topology-footer {
-  padding: 0 20px 16px;
-  font-size: 11px;
+.topology-svg-wrap svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.topology-explainer {
+  padding: 12px 20px 14px;
+  border-top: 1px solid var(--border-light);
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.explainer-status {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-main);
+  background: #FDFBF9;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+}
+.explainer-status strong {
+  color: var(--text-main);
+}
+.topology-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 11.5px;
   color: var(--text-secondary);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dot-teal { background: #2A8C76; }
+.dot-coral { background: #E06C62; }
+.dot-amber { background: #F59E0B; }
+.dot-purple { background: #8B5CF6; }
+.dot-shield { background: #2563EB; }
+
+.badge-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+.badge-tag.tag-teal { background: #E8F5F1; color: #1B6554; border: 1px solid #B8E2D7; }
+.badge-tag.tag-amber { background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
+.badge-tag.tag-red { background: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
+.badge-tag.tag-blue { background: #DBEAFE; color: #1D4ED8; border: 1px solid #BFDBFE; }
+
+/* SVG Live Animations */
+@keyframes dashFlow {
+  from { stroke-dashoffset: 32; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(224, 108, 98, 0.4)); }
+  50% { filter: drop-shadow(0 0 10px rgba(224, 108, 98, 0.85)); }
+}
+
+@keyframes shieldGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(37, 99, 235, 0.4)); }
+  50% { filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.8)); }
+}
+
+.flow-dash {
+  animation: dashFlow 0.9s linear infinite;
+}
+
+.flow-dash-fast {
+  animation: dashFlow 0.5s linear infinite;
+}
+
+.node-poison-pulse {
+  animation: pulseGlow 1.4s ease-in-out infinite;
+}
+
+.node-shield-pulse {
+  animation: shieldGlow 2s ease-in-out infinite;
 }
 
 /* ── Sidebar ── */

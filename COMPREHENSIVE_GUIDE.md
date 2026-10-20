@@ -107,7 +107,7 @@ The **ARP Spoofing Virtual Lab** is an interactive, browser-based cybersecurity 
 - Single-page application built with vanilla HTML5, CSS3, and ES2020 JavaScript.
 - Fully compatible with `file://` protocol; no web server or build tool required.
 - Dynamically queries `/api/state` on launch to learn the real MAC addresses assigned by Docker on the host machine.
-- Highlights arrows in **red with dashed strokes** when an ARP entry points to the attacker's MAC, and reverts to **solid teal** when legitimate mappings are in place.
+- **Interactive Live Topology & Animated Packet Flow**: Visualizes real packet mechanics in real time with animated SVG flows (direct ICMP/TCP packets in teal/cyan, red forged ARP injection streams, amber intercepted Layer 2 frames diverted to the attacker, and purple MITM relayed frames to the gateway). Detailed node cards render live kernel ARP caches, while deflection shields activate when static ARP mitigation protects the network.
 
 ---
 
