@@ -59,6 +59,8 @@ services:
       - VICTIM_IP=10.10.10.10
       - GATEWAY_IP=10.10.10.1
       - IFACE=eth0
+    sysctls:
+      - net.ipv4.ip_forward=1
     cap_add:
       - NET_ADMIN
       - NET_RAW

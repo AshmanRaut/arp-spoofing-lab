@@ -11,7 +11,6 @@ RUN apk add --no-cache \
         py3-pip \
         iproute2 \
         net-tools \
-        iputils \
         arping \
         tcpdump \
     && pip3 install --no-cache-dir --break-system-packages scapy

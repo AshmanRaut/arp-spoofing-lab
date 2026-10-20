@@ -165,7 +165,16 @@ async def _poll_arp_tables() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Detect initial container state
+    try:
+        snapshot = await asyncio.get_event_loop().run_in_executor(None, dc.get_lab_state)
+        if snapshot.get("lab_running"):
+            app_state.lab_running = True
+            app_state._arp_cache[dc.CONTAINER_VICTIM] = snapshot.get("arp_tables", {}).get(dc.CONTAINER_VICTIM, [])
+            app_state._arp_cache[dc.CONTAINER_GATEWAY] = snapshot.get("arp_tables", {}).get(dc.CONTAINER_GATEWAY, [])
+    except Exception as exc:
+        logger.warning("Could not determine initial container state: %s", exc)
+
     task = asyncio.create_task(_poll_arp_tables())
     await _emit_log("info", "ARP Spoofing Lab backend started.")
     yield
@@ -253,8 +262,12 @@ async def lab_reset():
 @app.post("/api/attack/start", summary="Start ARP poisoning inside attacker container")
 async def attack_start(body: AttackStartRequest):
     if not app_state.lab_running:
-        await _emit_log("warn", "Cannot start attack: lab is not running.")
-        return {"error": "Lab is not running."}
+        snapshot = await asyncio.get_event_loop().run_in_executor(None, dc.get_lab_state)
+        if snapshot.get("lab_running"):
+            app_state.lab_running = True
+        else:
+            await _emit_log("warn", "Cannot start attack: lab is not running.")
+            return {"error": "Lab is not running."}
     await _emit_log("info", f"Starting attack (mode={body.mode})…")
     try:
         result = await asyncio.get_event_loop().run_in_executor(
@@ -344,6 +357,17 @@ async def websocket_logs(websocket: WebSocket):
         "enabled": app_state.mitigation_enabled,
         "ts": _ts(),
     }))
+    # Send current ARP table state so frontend immediately knows current MACs
+    for node in (dc.CONTAINER_VICTIM, dc.CONTAINER_GATEWAY):
+        entries = app_state._arp_cache.get(node) or []
+        for entry in entries:
+            await websocket.send_text(json.dumps({
+                "type": "arp_update",
+                "node": node,
+                "ip": entry["ip"],
+                "mac": entry["mac"],
+                "ts": _ts(),
+            }))
     try:
         while True:
             # Keep the connection alive; we only push, never pull.

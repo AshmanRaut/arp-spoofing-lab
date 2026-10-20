@@ -78,22 +78,22 @@ def _compose(*args: str, check: bool = True) -> subprocess.CompletedProcess:
 
 
 def lab_start() -> dict:
-    """docker compose up -d — starts all services in detached mode."""
-    _compose("up", "-d", "--build")
+    """docker compose up -d — starts the 3 node containers in detached mode."""
+    _compose("up", "-d", CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER)
     _wait_for_containers([CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER])
     return {"status": "started"}
 
 
 def lab_stop() -> dict:
-    """docker compose stop — stops all services without removing them."""
-    _compose("stop")
+    """docker compose stop — stops the 3 node containers without killing backend."""
+    _compose("stop", CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER)
     return {"status": "stopped"}
 
 
 def lab_reset() -> dict:
-    """docker compose down -v && docker compose up -d — full teardown + rebuild."""
-    _compose("down", "-v", check=False)   # tolerate 'nothing to remove'
-    _compose("up", "-d", "--build")
+    """Stop, remove, and recreate the 3 node containers for a clean state."""
+    _compose("rm", "-f", "-s", "-v", CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER)
+    _compose("up", "-d", "--force-recreate", CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER)
     _wait_for_containers([CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER])
     return {"status": "reset"}
 
@@ -295,14 +295,24 @@ def get_lab_state() -> dict:
         except DockerControlError:
             pass
 
+    real_macs: dict[str, str] = {}
+    for name in (CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER):
+        if container_statuses.get(name) == "running":
+            try:
+                real_macs[name] = _get_mac(name)
+            except Exception:
+                pass
+
     lab_running = all(
         container_statuses.get(n) == "running"
         for n in (CONTAINER_GATEWAY, CONTAINER_VICTIM, CONTAINER_ATTACKER)
     )
 
     return {
+        "lab_status": "running" if lab_running else "stopped",
         "lab_running": lab_running,
         "containers": container_statuses,
+        "real_macs": real_macs,
         "arp_tables": {
             CONTAINER_VICTIM: victim_arp,
             CONTAINER_GATEWAY: gateway_arp,

@@ -10,11 +10,11 @@
 const API_BASE_URL = (window.LAB_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const WS_BASE_URL  = API_BASE_URL.replace(/^http/, 'ws');
 
-/* ─── Known MACs for poisoning detection ───────────────────── */
-const LEGIT_MACS = {
-  victim:   '02:42:0a:0a:0a:0a',
-  gateway:  '02:42:0a:0a:0a:01',
-  attacker: '02:42:0a:0a:0a:42',
+/* ─── Dynamic MACs learned from backend/network ────────────── */
+const realMacs = {
+  victim:   '',
+  gateway:  '',
+  attacker: '',
 };
 
 /* ─── Node positions in SVG (520 × 320 viewBox) ─────────────── */
@@ -35,10 +35,13 @@ const LINKS = [
 const state = {
   activeTab:    'Simulation',
   socketStatus: 'connecting',   // 'connecting' | 'connected' | 'disconnected'
-  events:       [],             // last 200 LabEvents
-  latestArp:    {},             // node → arp_update event
+  labRunning:   false,
+  attackActive: false,
   attackMode:   'mitm',
   mitigationOn: false,
+  events:       [],             // last 200 LabEvents
+  arpTables:    { victim: {}, gateway: {}, attacker: {} }, // node -> { ip: mac }
+  realMacs:     { victim: '', gateway: '', attacker: '' },
   pending:      '',             // path of in-flight request
   quizIndex:    0,
   quizAnswer:   null,           // null | number
@@ -57,26 +60,118 @@ const MODULE_ICONS = {
   Simulation: 'SI', Assignment: 'AS', References: 'RE', Feedback: 'FB',
 };
 
-/* ─── Quiz data (mirrors lib/quiz-data.ts) ──────────────────── */
+/* ─── Quiz data (all 10 questions from content/quiz.json) ───── */
 const QUIZ = [
   {
-    question: 'What does ARP map?',
-    options:  ['IP addresses to MAC addresses', 'MAC addresses to passwords', 'Ports to processes', 'DNS names to IP addresses'],
-    correctIndex: 0,
-    explanation: 'ARP resolves a local network-layer IP address to a link-layer MAC address.',
+    question: "Which protocol is responsible for resolving an IP address to a MAC address on a local area network?",
+    options: [
+      "DNS (Domain Name System)",
+      "ARP (Address Resolution Protocol)",
+      "DHCP (Dynamic Host Configuration Protocol)",
+      "ICMP (Internet Control Message Protocol)"
+    ],
+    correctIndex: 1,
+    explanation: "ARP (Address Resolution Protocol) operates at the Layer 2/3 boundary and resolves IP addresses to MAC addresses on a local network segment. DNS resolves hostnames to IPs; DHCP assigns IP configurations; ICMP handles error reporting and diagnostics."
   },
   {
-    question: 'Why is ARP spoofing possible?',
-    options:  ['ARP replies are not authenticated', 'Switches encrypt all frames', 'DNS is case-sensitive', 'TCP requires a password'],
-    correctIndex: 0,
-    explanation: 'Hosts generally accept unsolicited ARP replies, so an attacker can poison their caches.',
+    question: "At which OSI layer does ARP Cache Poisoning primarily operate?",
+    options: [
+      "Layer 3 — Network",
+      "Layer 4 — Transport",
+      "Layer 2 — Data Link",
+      "Layer 7 — Application"
+    ],
+    correctIndex: 2,
+    explanation: "ARP poisoning is a Layer 2 (Data Link) attack because it manipulates MAC-address-to-IP mappings used by the Ethernet/switching layer. It exploits the lack of authentication in the ARP protocol, which lives at the Data Link layer boundary."
   },
   {
-    question: 'What is a common MITM defense?',
-    options:  ['Dynamic ARP Inspection', 'Disabling HTTPS', 'Using longer hostnames', 'Broadcasting more ARP requests'],
-    correctIndex: 0,
-    explanation: 'Dynamic ARP Inspection validates ARP packets against trusted DHCP bindings.',
+    question: "What is a Gratuitous ARP?",
+    options: [
+      "An ARP Request broadcasted when a device first joins the network",
+      "An ARP Reply sent without a preceding ARP Request, announcing a device's own IP-to-MAC mapping",
+      "A special ARP message used only by routers to maintain routing tables",
+      "An encrypted ARP packet used in secure networks"
+    ],
+    correctIndex: 1,
+    explanation: "A Gratuitous ARP is an ARP Reply sent unprompted — without any preceding ARP Request. Devices use it legitimately to detect IP conflicts or announce a MAC address change. Attackers exploit it to silently overwrite other devices' ARP caches."
   },
+  {
+    question: "Why is the ARP protocol inherently vulnerable to spoofing attacks?",
+    options: [
+      "ARP packets are too large for typical network buffers",
+      "ARP uses UDP which is unreliable",
+      "ARP has no cryptographic authentication; any device can claim any IP-to-MAC mapping",
+      "ARP entries are stored permanently and can never be updated"
+    ],
+    correctIndex: 2,
+    explanation: "ARP was designed in 1982 for trusted small LANs and includes no authentication mechanism. Any host on the network can broadcast an ARP Reply claiming any IP address, and all other hosts will accept and cache the mapping without verification."
+  },
+  {
+    question: "Scenario: You examine the ARP table on a victim machine (10.10.10.10) and find that both 10.10.10.1 (gateway) and 10.10.10.66 (attacker) resolve to the same MAC address. What has most likely happened?",
+    options: [
+      "The gateway and attacker share a network interface (normal behavior)",
+      "The victim has manually configured a static ARP entry",
+      "An ARP Cache Poisoning attack has caused the attacker's MAC to be associated with the gateway's IP",
+      "The DHCP server assigned the same IP to two devices"
+    ],
+    correctIndex: 2,
+    explanation: "When two different IP addresses resolve to the same MAC address in an ARP table, it strongly indicates ARP poisoning. The attacker sent forged ARP Replies claiming to be the gateway, so the victim's traffic destined for 10.10.10.1 is now delivered to the attacker's NIC."
+  },
+  {
+    question: "In a Man-in-the-Middle ARP attack, what must the attacker do to avoid disrupting the victim's connectivity while intercepting traffic?",
+    options: [
+      "Disable the victim's network interface",
+      "Enable IP forwarding on the attacker's machine so intercepted packets are relayed to the real destination",
+      "Block all ARP traffic on the network segment",
+      "Assign itself the gateway's IP address permanently"
+    ],
+    correctIndex: 1,
+    explanation: "In MITM mode, the attacker enables IP forwarding. Packets from the victim arrive at the attacker's NIC (because the victim's ARP cache says the gateway's IP = attacker's MAC), the attacker inspects or modifies them, then forwards them to the real gateway — keeping the connection alive while performing interception."
+  },
+  {
+    question: "Scenario: After an ARP poisoning attack begins, the victim can no longer reach any external websites, and all pings to the gateway time out. The attacker's machine is NOT forwarding any packets. What type of attack is this?",
+    options: [
+      "Man-in-the-Middle (MITM) attack",
+      "Denial of Service (DoS) via ARP poisoning",
+      "DNS Hijacking",
+      "Port Scan"
+    ],
+    correctIndex: 1,
+    explanation: "When an ARP poisoning attack is configured with IP forwarding disabled (or packets actively dropped), the victim's traffic is redirected to the attacker but never forwarded to the real gateway. This results in a Denial of Service — the victim loses all network connectivity — rather than silent interception."
+  },
+  {
+    question: "Which defensive technique involves a managed switch validating ARP packets against a trusted DHCP binding table and dropping those that don't match?",
+    options: [
+      "Static ARP entries",
+      "Port Security",
+      "Dynamic ARP Inspection (DAI)",
+      "802.1X Network Access Control"
+    ],
+    correctIndex: 2,
+    explanation: "Dynamic ARP Inspection (DAI) is a Cisco/managed-switch feature that inspects every ARP packet on untrusted switch ports. It cross-references the claimed IP-MAC pair against the DHCP Snooping Binding Table. Mismatches are dropped and logged, effectively preventing ARP poisoning at the switch level."
+  },
+  {
+    question: "An attacker successfully executes an ARP Cache Poisoning MITM attack and intercepts all traffic between a victim and their bank's website. The bank uses HTTPS with a valid TLS certificate. What data can the attacker realistically read?",
+    options: [
+      "Full plaintext usernames, passwords, and account numbers",
+      "Only the victim's IP and MAC address",
+      "Only the hostname of the bank's website (via SNI) and encrypted ciphertext — not the payload content",
+      "Nothing at all, since ARP operates below the network layer"
+    ],
+    correctIndex: 2,
+    explanation: "HTTPS/TLS encrypts the payload end-to-end. Even positioned in-path via ARP poisoning, the attacker only sees encrypted ciphertext and possibly the Server Name Indication (SNI) field in the TLS handshake. Without the server's private key, the attacker cannot decrypt the content."
+  },
+  {
+    question: "How does adding a static ARP entry on the victim protect against ARP Cache Poisoning?",
+    options: [
+      "It encrypts all ARP traffic leaving the victim",
+      "It permanently binds an IP address to a specific MAC in the victim's ARP table, so incoming forged ARP Replies cannot overwrite it",
+      "It prevents the victim from receiving any ARP broadcast packets",
+      "It notifies the network administrator whenever an ARP Reply is received"
+    ],
+    correctIndex: 1,
+    explanation: "A static ARP entry is a manually configured, permanent IP-to-MAC binding that the operating system treats as authoritative. Unlike dynamic entries, static entries are not overwritten when forged ARP Replies arrive, making ARP poisoning ineffective for those specific entries."
+  }
 ];
 
 /* ─── DOM helpers ───────────────────────────────────────────── */
@@ -93,6 +188,40 @@ function showToast(msg, type = 'success') {
   setTimeout(() => el.remove(), 3100);
 }
 
+/* ─── Fetch full state snapshot from backend ───────────────── */
+async function fetchState() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/state`);
+    if (!res.ok) return;
+    const data = await res.json();
+    state.labRunning = Boolean(data.lab_running);
+    state.attackActive = Boolean(data.attack_active);
+    if (data.attack_mode) state.attackMode = data.attack_mode;
+    state.mitigationOn = Boolean(data.mitigation_enabled);
+    if (data.real_macs) {
+      state.realMacs = { ...state.realMacs, ...data.real_macs };
+    }
+    if (data.arp_tables) {
+      for (const node of ['victim', 'gateway', 'attacker']) {
+        if (data.arp_tables[node]) {
+          if (!state.arpTables[node]) state.arpTables[node] = {};
+          for (const entry of data.arp_tables[node]) {
+            state.arpTables[node][entry.ip] = (entry.mac || '').toLowerCase();
+          }
+        }
+      }
+    }
+    const mitInput = $('#mitigation-toggle');
+    if (mitInput) mitInput.checked = state.mitigationOn;
+    const modeSelect = $('#attack-mode-select');
+    if (modeSelect && state.attackMode) modeSelect.value = state.attackMode;
+    renderLabStatus();
+    renderDiagram();
+  } catch {
+    /* Backend offline or file:// */
+  }
+}
+
 /* ─── API calls ─────────────────────────────────────────────── */
 async function callApi(path, body) {
   if (state.pending) return;
@@ -106,12 +235,22 @@ async function callApi(path, body) {
     }
     const res = await fetch(`${API_BASE_URL}${path}`, opts);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    showToast('Command sent', 'success');
+    showToast('Command executed successfully', 'success');
+
+    if (path === '/api/lab/start') state.labRunning = true;
+    if (path === '/api/lab/stop') { state.labRunning = false; state.attackActive = false; }
+    if (path === '/api/lab/reset') { state.labRunning = true; state.attackActive = false; state.mitigationOn = false; }
+    if (path === '/api/attack/start') state.attackActive = true;
+    if (path === '/api/attack/stop') state.attackActive = false;
+    if (path === '/api/mitigation/toggle') state.mitigationOn = Boolean(body?.enabled);
+
+    await fetchState();
   } catch (err) {
-    showToast(`Backend not connected — ${err.message || 'could not reach API'}`, 'error');
+    showToast(`Backend command failed — ${err.message || 'could not reach API'}`, 'error');
   } finally {
     state.pending = '';
     renderButtons();
+    renderLabStatus();
   }
 }
 
@@ -131,6 +270,7 @@ function connectWs() {
     state.socketStatus = 'connected';
     renderWsStatus();
     renderAlert();
+    fetchState();
   };
 
   _ws.onmessage = (msg) => {
@@ -138,10 +278,23 @@ function connectWs() {
       const event = JSON.parse(msg.data);
       state.events = [...state.events.slice(-199), event];
       if (event.type === 'arp_update') {
-        state.latestArp = { ...state.latestArp, [event.node]: event };
+        if (!state.arpTables[event.node]) state.arpTables[event.node] = {};
+        state.arpTables[event.node][event.ip] = (event.mac || '').toLowerCase();
         renderDiagram();
-      }
-      if (['log', 'attack_state', 'mitigation_state'].includes(event.type)) {
+      } else if (event.type === 'attack_state') {
+        state.attackActive = Boolean(event.active);
+        if (event.mode) state.attackMode = event.mode;
+        renderLabStatus();
+        renderDiagram();
+        renderLog();
+      } else if (event.type === 'mitigation_state') {
+        state.mitigationOn = Boolean(event.enabled);
+        const mitInput = $('#mitigation-toggle');
+        if (mitInput) mitInput.checked = state.mitigationOn;
+        renderLabStatus();
+        renderDiagram();
+        renderLog();
+      } else if (event.type === 'log') {
         renderLog();
       }
       renderLabStatus();
@@ -161,14 +314,15 @@ function connectWs() {
 
 /* ─── Derived state helpers ─────────────────────────────────── */
 function getLabStatus() {
-  const rev = [...state.events].reverse();
-  const attackState     = rev.find(e => e.type === 'attack_state');
-  const mitigationState = rev.find(e => e.type === 'mitigation_state');
-  const running = state.events.some(e => e.type === 'log' && e.message?.toLowerCase().includes('started'));
-
-  if (attackState?.active)                    return 'Under Attack';
-  if (!running)                               return 'Stopped';
-  if (mitigationState?.enabled ?? state.mitigationOn) return 'Running — Protected';
+  if (state.attackActive) {
+    return 'Under Attack';
+  }
+  if (!state.labRunning) {
+    return 'Stopped';
+  }
+  if (state.mitigationOn) {
+    return 'Running — Protected';
+  }
   return 'Running — Vulnerable';
 }
 
@@ -244,9 +398,24 @@ function renderDiagram() {
 
   /* Edges */
   LINKS.forEach(link => {
-    const arpEntry  = state.latestArp[link.from.key];
-    const currentMac = arpEntry?.mac;
-    const poisoned   = Boolean(currentMac && currentMac === LEGIT_MACS.attacker && link.owner !== 'attacker');
+    const targetIp = link.to.ip;
+    const fromTable = state.arpTables[link.from.key] || {};
+    const currentMac = fromTable[targetIp];
+
+    let poisoned = false;
+    if (currentMac) {
+      const normCurrent = currentMac.toLowerCase();
+      const attackerMac = (state.realMacs.attacker || '').toLowerCase();
+      const targetRealMac = (state.realMacs[link.to.key] || '').toLowerCase();
+
+      if (link.owner !== 'attacker') {
+        if (attackerMac && normCurrent === attackerMac) {
+          poisoned = true;
+        } else if (targetRealMac && normCurrent !== targetRealMac) {
+          poisoned = true;
+        }
+      }
+    }
     const color      = poisoned ? '#E06C62' : '#2A8C76';
     const midX       = (link.from.x + link.to.x) / 2;
     const midY       = (link.from.y + link.to.y) / 2;
@@ -266,8 +435,8 @@ function renderDiagram() {
 
     /* Label pill background */
     const pill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    pill.setAttribute('x', midX - 38); pill.setAttribute('y', midY - 16);
-    pill.setAttribute('width', '76'); pill.setAttribute('height', '18');
+    pill.setAttribute('x', midX - 44); pill.setAttribute('y', midY - 16);
+    pill.setAttribute('width', '88'); pill.setAttribute('height', '18');
     pill.setAttribute('rx', '9'); pill.setAttribute('fill', '#FFFFFF');
     pill.setAttribute('stroke', color); pill.setAttribute('stroke-width', '1');
 
@@ -276,9 +445,9 @@ function renderDiagram() {
     label.setAttribute('x', midX); label.setAttribute('y', midY - 4);
     label.setAttribute('fill', color);
     label.setAttribute('text-anchor', 'middle');
-    label.setAttribute('font-size', '9');
+    label.setAttribute('font-size', '8.5');
     label.setAttribute('font-family', "'JetBrains Mono', monospace");
-    label.textContent = currentMac ?? 'awaiting ARP';
+    label.textContent = currentMac ? currentMac : 'awaiting ARP';
 
     g.append(line, pill, label);
     svg.appendChild(g);
@@ -510,16 +679,20 @@ function buildUI() {
       <section id="panel-Theory" class="tab-panel" role="tabpanel">
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>Theory</h2>
-          <p>ARP maps an IP address to a MAC address. A host broadcasts a request asking who owns an IP, and the owner responds with a reply that is cached for later frames.</p>
+          <h2>Theory & Protocol Mechanics</h2>
+          <p>Address Resolution Protocol (ARP, RFC 826) bridges the gap between Layer 3 logical IP addresses and Layer 2 physical MAC addresses on local broadcast domains.</p>
         </div>
         <div class="theory-grid">
           ${[
-            ['ARP cache',        'Entries are mutable and time-bound. A forged reply can replace a legitimate association.'],
-            ['No authentication','Classic ARP does not prove that a reply came from the rightful owner.'],
-            ['Gratuitous ARP',   'Unsolicited announcements update neighbors quickly and can also be abused for poisoning.'],
-            ['MITM vs DoS',      'MITM forwards traffic through the attacker; DoS drops or misroutes traffic so communication fails.'],
-            ['Defenses',         'Static ARP entries suit small stable networks. Dynamic ARP Inspection validates switch-port bindings.'],
+            ['Layer 2 vs Layer 3', 'Ethernet frames require destination MAC addresses. When Host A wishes to transmit an IP packet to Host B on the same subnet, it must first resolve B’s MAC address using an ARP Request.'],
+            ['ARP Request / Reply', 'ARP Requests are broadcasted (dst ff:ff:ff:ff:ff:ff) asking "Who has IP X?". The rightful owner responds with a unicast ARP Reply stating "IP X is at MAC Y".'],
+            ['The ARP Cache', 'Operating systems cache learned IP-to-MAC associations for 30–120 seconds to prevent constant broadcast storms. Entries are mutable and continuously refreshed.'],
+            ['No Authentication', 'Designed in 1982 for trusted networks, ARP has zero cryptographic authentication. Any device on the subnet can claim ownership of any IP address without proof.'],
+            ['Gratuitous ARP', 'Unsolicited ARP announcements update neighbors of IP/MAC changes (e.g. NIC failover). Attackers exploit this to silently overwrite remote caches without prior requests.'],
+            ['MITM vs DoS', 'In MITM, the attacker enables IP forwarding to invisibly intercept and relay traffic. In DoS, forwarding is disabled, causing all redirected packets to be silently dropped.'],
+            ['Static ARP Defense', 'Permanent IP-to-MAC bindings configured manually in the OS cache cannot be overwritten by incoming forged ARP replies, but this approach does not scale easily.'],
+            ['Dynamic ARP Inspection', 'Enterprise switches with DAI validate incoming ARP packets against the DHCP Snooping Binding Table, dropping forged packets at the switch-port level.'],
+            ['HTTPS / VPN Protections', 'ARP poisoning is a Layer 2 attack. End-to-end encryption (TLS/HTTPS, VPN tunnels) ensures that even if traffic flows through an attacker, the payload remains unreadable ciphertext.']
           ].map(([title, text]) => `
             <div class="theory-card">
               <p class="theory-title">${title}</p>
@@ -678,13 +851,34 @@ function buildUI() {
       <section id="panel-References" class="tab-panel" role="tabpanel">
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>References</h2>
-          <p>Placeholder citations for this teaching lab.</p>
+          <h2>References & Further Reading</h2>
+          <p>Primary standards, textbook citations, and security documentation covering ARP analysis and defense.</p>
         </div>
         <ul class="references-list">
-          <li>RFC 826 — An Ethernet Address Resolution Protocol.</li>
-          <li>Placeholder: campus network security handbook.</li>
-          <li>Placeholder: Dynamic ARP Inspection documentation.</li>
+          <li style="margin-bottom:12px;line-height:1.6">
+            <strong>1. RFC 826 — An Ethernet Address Resolution Protocol (Plummer, 1982)</strong><br>
+            <span style="color:var(--text-secondary);font-size:13px">The foundational IETF specification defining packet structure, cache algorithms, and resolution mechanics.</span>
+          </li>
+          <li style="margin-bottom:12px;line-height:1.6">
+            <strong>2. Kurose, J. & Ross, K. — <em>Computer Networking: A Top-Down Approach</em>, Chapter 6</strong><br>
+            <span style="color:var(--text-secondary);font-size:13px">Covers switched LANs, Ethernet framing, link-layer addressing, and host-to-router ARP cycles.</span>
+          </li>
+          <li style="margin-bottom:12px;line-height:1.6">
+            <strong>3. Forouzan, B. A. — <em>Data Communications and Networking</em>, ARP/RARP Section</strong><br>
+            <span style="color:var(--text-secondary);font-size:13px">Detailed packet format diagrams, proxy ARP, and Layer 2/3 address mapping theory.</span>
+          </li>
+          <li style="margin-bottom:12px;line-height:1.6">
+            <strong>4. MITRE ATT&CK — T1557.002: ARP Cache Poisoning</strong><br>
+            <span style="color:var(--text-secondary);font-size:13px"><a href="https://attack.mitre.org/techniques/T1557/002/" target="_blank" rel="noopener noreferrer" style="color:var(--accent-blue)">https://attack.mitre.org/techniques/T1557/002/</a> — Adversarial adversary profile, real-world usage, and mitigation strategies.</span>
+          </li>
+          <li style="margin-bottom:12px;line-height:1.6">
+            <strong>5. Cisco Systems — Configuring Dynamic ARP Inspection (DAI) Documentation</strong><br>
+            <span style="color:var(--text-secondary);font-size:13px"><a href="https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst6500/ios/12-2SX/configuration/guide/book/dynarp.html" target="_blank" rel="noopener noreferrer" style="color:var(--accent-blue)">Official Cisco Catalyst Switch Guide</a> — DHCP Snooping tables, trusted vs. untrusted ports, and ARP rate limiting.</span>
+          </li>
+          <li style="margin-bottom:12px;line-height:1.6">
+            <strong>6. Wireshark Wiki — Address Resolution Protocol (ARP)</strong><br>
+            <span style="color:var(--text-secondary);font-size:13px"><a href="https://wiki.wireshark.org/ARP" target="_blank" rel="noopener noreferrer" style="color:var(--accent-blue)">https://wiki.wireshark.org/ARP</a> — Protocol dissections, sample packet captures, and detecting gratuitous ARP anomalies.</span>
+          </li>
         </ul>
       </section>
 
@@ -799,6 +993,8 @@ function init() {
   renderLog();
   renderQuiz();
   connectWs();
+  fetchState();
+  setInterval(fetchState, 3000);
   /* set default active tab */
   state.activeTab = 'Simulation';
   renderTabs();
