@@ -1,0 +1,113 @@
+# docker-compose.yml — ARP Spoofing Lab
+#
+# IMPORTANT FOR BACKEND SERVICE
+# ─────────────────────────────
+# The backend container controls sibling containers via the host Docker daemon.
+# It requires:
+#   1. /var/run/docker.sock mounted (already done below)
+#   2. The project root mounted at /workspace so `docker compose` can find
+#      this file from inside the container.
+#   3. COMPOSE_PROJECT_DIR and COMPOSE_PROJECT_NAME env vars (set below).
+
+services:
+
+  # ── Gateway ───────────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: nodes/gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    hostname: gateway
+    networks:
+      arp-lab-net:
+        ipv4_address: 10.10.10.1
+    sysctls:
+      - net.ipv4.ip_forward=1
+    cap_add:
+      - NET_ADMIN
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+
+  # ── Victim ────────────────────────────────────────────────────────────────
+  victim:
+    build:
+      context: nodes/victim
+      dockerfile: Dockerfile
+    container_name: victim
+    hostname: victim
+    networks:
+      arp-lab-net:
+        ipv4_address: 10.10.10.10
+    environment:
+      - GATEWAY_IP=10.10.10.1
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    mem_limit: 256m
+    cpus: 0.5
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+  # ── Attacker ──────────────────────────────────────────────────────────────
+  attacker:
+    build:
+      context: nodes/attacker
+      dockerfile: Dockerfile
+    container_name: attacker
+    hostname: attacker
+    networks:
+      arp-lab-net:
+        ipv4_address: 10.10.10.66
+    environment:
+      - VICTIM_IP=10.10.10.10
+      - GATEWAY_IP=10.10.10.1
+      - IFACE=eth0
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    mem_limit: 256m
+    cpus: 0.5
+    depends_on:
+      - gateway
+      - victim
+    restart: unless-stopped
+
+  # ── Backend ───────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    container_name: backend
+    hostname: backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # REQUIRED: mount host Docker socket so the Python SDK can control
+      # sibling containers without needing Docker-in-Docker.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # REQUIRED: mount project root so `docker compose` CLI commands can
+      # find this docker-compose.yml from inside the container.
+      - .:/workspace
+    environment:
+      - COMPOSE_PROJECT_DIR=/workspace
+      - COMPOSE_PROJECT_NAME=arp-spoofing-lab
+      - PYTHONUNBUFFERED=1
+    mem_limit: 512m
+    cpus: 1.0
+    # Backend doesn't need lab-net; it controls containers via Docker socket.
+    # If you need the backend reachable from within lab-net, add it here.
+    restart: unless-stopped
+
+# ── Isolated network ──────────────────────────────────────────────────────────
+# internal: true  →  no route to host LAN or internet.
+networks:
+  arp-lab-net:
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.10.0/24
+          gateway: 10.10.10.254   # Docker bridge IP (not our gateway container)
