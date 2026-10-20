@@ -1,69 +1,65 @@
-# Attacker node — `arp_spoof.py` control contract
+# Attacker Node — `arp_spoof.py` Control Contract
 
-The backend (Module 2) controls poisoning **exclusively** via `docker exec`
-against the `attacker` container. It should never exec into `gateway` or
-`victim` to run attack logic.
+## Overview
 
-## Start an attack
+The attacker container runs `arp_spoof.py`, a self-contained Scapy script that sends forged ARP replies to redirect traffic between the victim and the gateway through the attacker node.
 
+The script requires `NET_RAW` and `NET_ADMIN` Linux capabilities (already granted in `docker-compose.yml`) because it opens raw sockets to send ARP packets and writes to `/proc/sys/net/ipv4/ip_forward`.
+
+The backend (Module 2) controls poisoning **exclusively** via `docker exec` against the `attacker` container. It should never exec into `gateway` or `victim` to run attack logic.
+
+---
+
+## Commands the Backend Uses (Module 2 Reference)
+
+### 1. Start ARP Poisoning — MITM Mode
 ```bash
 docker exec attacker python3 arp_spoof.py start --mode mitm
-docker exec attacker python3 arp_spoof.py start --mode dos
+# or
+docker exec attacker python3 /arp_spoof.py start --mode mitm
 ```
+- Forks and detaches inside the container, returns immediately (exit code 0, stdout prints `started background poison process, pid=<n>, mode=mitm`).
+- Enables IP forwarding inside the attacker container so packets still reach their destinations (Man-in-the-Middle: intercept + relay).
+- Sends forged ARP replies every 2 seconds until stopped.
 
-- Forks and detaches inside the container, returns immediately (exit code 0,
-  stdout prints `started background poison process, pid=<n>, mode=<mode>`).
-- `--mode` defaults to `mitm` if omitted.
-- Calling `start` a second time while one is already running exits non-zero
-  with `a poison process already appears to be running (pid file exists)` —
-  the backend should call `stop` first, or check `status`.
+### 2. Start ARP Poisoning — DoS Mode
+```bash
+docker exec attacker python3 arp_spoof.py start --mode dos
+# or
+docker exec attacker python3 /arp_spoof.py start --mode dos
+```
+- Disables IP forwarding — traffic redirected to attacker is silently dropped (Denial of Service).
+- Sends forged ARP replies every 2 seconds until stopped.
 
-## Stop an attack
-
+### 3. Stop ARP Poisoning
 ```bash
 docker exec attacker python3 arp_spoof.py stop
+# or
+docker exec attacker python3 /arp_spoof.py stop
 ```
+- Sends `SIGTERM` to the running background process.
+- The process restores correct ARP replies to both victim and gateway to clean their tables.
+- Disables IP forwarding, removes `/tmp/arp_spoof.pid`, and exits cleanly.
+- If no attack is running, prints `no poison process is running` and exits 0 (safe to call unconditionally).
 
-Sends `SIGTERM` to the background poisoning process. That process then:
-1. disables IP forwarding,
-2. sends correct ARP replies to both victim and gateway to restore their
-   real tables,
-3. removes its own pid file, then exits.
-
-If nothing is running, this prints `no poison process is running` and exits
-0 (safe to call unconditionally).
-
-## Check status
-
+### 4. Check Status
 ```bash
 docker exec attacker python3 arp_spoof.py status
 ```
+- Prints exactly `running` or `stopped` on stdout.
 
-Prints exactly `running` or `stopped` on stdout — easy to parse.
+---
 
-## Reading the ARP tables (for `GET /api/state`)
+## Environment Variables (Configured in `docker-compose.yml`)
 
-The backend reads current ARP state directly from victim/gateway, e.g.:
+| Variable     | Default       | Description               |
+|--------------|---------------|---------------------------|
+| `VICTIM_IP`  | `10.10.10.10` | IP of the victim node     |
+| `GATEWAY_IP` | `10.10.10.1`  | IP of the gateway node    |
+| `IFACE`      | `eth0`        | Network interface to use  |
 
-```bash
-docker exec victim  ip neigh show
-docker exec gateway ip neigh show
-```
+---
 
-or with `net-tools`-style output from the attacker node itself:
+## Clean-up Guarantee
 
-```bash
-docker exec attacker arp -a
-```
-
-## Notes for Module 2
-
-- Default victim/gateway IPs are `10.10.10.10` / `10.10.10.1`, overridable
-  per-call with `--victim` / `--gateway`, or by setting `VICTIM_IP` /
-  `GATEWAY_IP` env vars on the `attacker` service.
-- Logs are written both to stdout and to `/tmp/arp_spoof.log` inside the
-  container — tail with `docker exec attacker tail -f /tmp/arp_spoof.log`.
-- Only one poison process runs at a time (enforced via a pid file at
-  `/tmp/arp_spoof.pid`).
-- `docker compose down -v` removes the container entirely, so no cleanup of
-  pid/log files is needed between runs.
+`docker compose down -v` stops all containers via SIGTERM. The `arp_spoof.py` signal handler catches the termination signal, emits corrective ARP replies to flush poisoned entries, and exits cleanly.

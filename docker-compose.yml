@@ -1,5 +1,15 @@
+# docker-compose.yml — ARP Spoofing Lab
+#
+# Isolated bridge network "arp-lab-net" (10.10.10.0/24, internal: true)
+# Services:
+#   - gateway  (10.10.10.1)  : router / default gateway
+#   - victim   (10.10.10.10) : target machine with active traffic generator
+#   - attacker (10.10.10.66) : scapy-based ARP spoofer
+#   - backend  (port 8000)   : FastAPI control API connected to host Docker socket
+
 services:
 
+  # ── Gateway ───────────────────────────────────────────────────────────────
   gateway:
     build: ./nodes/gateway
     container_name: gateway
@@ -7,6 +17,8 @@ services:
     networks:
       arp-lab-net:
         ipv4_address: 10.10.10.1
+    sysctls:
+      - net.ipv4.ip_forward=1
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -14,8 +26,8 @@ services:
     cpus: 0.5
     restart: unless-stopped
     tty: true
-    # no ports published: this node is reached only inside arp-lab-net
 
+  # ── Victim ────────────────────────────────────────────────────────────────
   victim:
     build: ./nodes/victim
     container_name: victim
@@ -23,6 +35,8 @@ services:
     networks:
       arp-lab-net:
         ipv4_address: 10.10.10.10
+    environment:
+      - GATEWAY_IP=10.10.10.1
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -33,6 +47,7 @@ services:
     depends_on:
       - gateway
 
+  # ── Attacker ──────────────────────────────────────────────────────────────
   attacker:
     build: ./nodes/attacker
     container_name: attacker
@@ -40,6 +55,10 @@ services:
     networks:
       arp-lab-net:
         ipv4_address: 10.10.10.66
+    environment:
+      - VICTIM_IP=10.10.10.10
+      - GATEWAY_IP=10.10.10.1
+      - IFACE=eth0
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -50,17 +69,39 @@ services:
     depends_on:
       - gateway
       - victim
-    # The Module 2 backend controls this container with:
-    #   docker exec attacker python3 arp_spoof.py start --mode mitm|dos
-    #   docker exec attacker python3 arp_spoof.py stop
-    # See nodes/attacker/README.md for the full contract.
 
+  # ── Backend ───────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    container_name: backend
+    hostname: backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # REQUIRED: mount host Docker socket so the Python SDK can control
+      # sibling containers without needing Docker-in-Docker.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # REQUIRED: mount project root so `docker compose` CLI commands can
+      # find this docker-compose.yml from inside the container.
+      - .:/workspace
+    environment:
+      - COMPOSE_PROJECT_DIR=/workspace
+      - COMPOSE_PROJECT_NAME=arp-spoofing-lab
+      - PYTHONUNBUFFERED=1
+    mem_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+
+# ── Isolated network ──────────────────────────────────────────────────────────
+# internal: true  →  hard isolation: no route to host LAN or internet.
 networks:
   arp-lab-net:
     driver: bridge
-    internal: true          # hard isolation: no route to host LAN or internet
+    internal: true
     ipam:
       driver: default
       config:
         - subnet: 10.10.10.0/24
-          gateway: 10.10.10.254
+          gateway: 10.10.10.254   # Docker bridge IP
