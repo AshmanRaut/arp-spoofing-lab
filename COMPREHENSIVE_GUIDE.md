@@ -115,13 +115,13 @@ The **ARP Spoofing Virtual Lab** is an interactive, browser-based cybersecurity 
 
 ```
 arp-spoofing-lab/
-├── COMPREHENSIVE_GUIDE.md           ← Complete architectural & operational guide
+├── COMPREHENSIVE_GUIDE.md           ← Complete architectural, mechanics & API reference guide
 ├── README.md                        ← Integration team metadata & project summary
 ├── lab.yaml                         ← Institutional virtual lab manifest
 ├── docker-compose.yml               ← 4-service topology & isolated network definition
 ├── docs/
 │   ├── CONTRACT.md                  ← Shared REST + WebSocket communication contract
-│   └── SETUP.md                     ← Cross-platform Docker installation & troubleshooting
+│   └── SETUP.md                     ← Complete guide for Docker install, execution & troubleshooting
 ├── nodes/                           ← Container definitions for network nodes
 │   ├── gateway/
 │   │   ├── Dockerfile               ← Alpine router with IP forwarding enabled
@@ -212,52 +212,19 @@ The backend broadcasts real-time JSON events to all connected clients:
 
 ---
 
-## 6. How to Run the Project Locally
+## 6. Lab Setup & Execution Guide
 
-### Step 1: Prerequisites
-Ensure **Docker Desktop** (macOS / Windows) or **Docker Engine + Docker Compose** (Linux) is installed and running.
+All step-by-step instructions for installing Docker, starting the containers, opening the browser dashboard, stopping/resetting the environment, and troubleshooting common issues are maintained in the dedicated setup guide:
 
-Verify in your terminal:
-```bash
-docker --version
-docker compose version
-```
+👉 **[docs/SETUP.md](docs/SETUP.md)**
 
-### Step 2: Clone & Launch Containers
-From the repository root:
-```bash
-# 1. Build and start all 4 containers in detached mode
-docker compose up -d --build
-
-# 2. Confirm all 4 containers are up and running
-docker compose ps
-```
-
-You should see:
-```
-NAME       IMAGE                       COMMAND                  STATUS
-attacker   arp-spoofing-lab-attacker   "/entrypoint.sh"         Up
-backend    arp-spoofing-lab-backend    "uvicorn app:app ..."    Up (port 8000)
-gateway    arp-spoofing-lab-gateway    "/entrypoint.sh"         Up
-victim     arp-spoofing-lab-victim     "/entrypoint.sh"         Up
-```
-
-### Step 3: Open the Frontend
-Open [`frontend/index.html`](file:///Users/ashmanraut/Ashman/Fr.%20CRCE/CSS/arp-spoofing-lab/frontend/index.html) in your browser:
-
-* **macOS Terminal:**
-  ```bash
-  open frontend/index.html
-  ```
-* **Linux Terminal:**
-  ```bash
-  xdg-open frontend/index.html
-  ```
-* **Windows (PowerShell):**
-  ```powershell
-  start frontend\index.html
-  ```
-* Or simply double-click `frontend/index.html` in your file explorer.
+Please consult `docs/SETUP.md` for:
+- Docker installation procedures for Windows (WSL 2), macOS, and Linux
+- Starting all 4 lab containers with Docker Compose (`docker compose up -d --build`)
+- Expected container status verification (`docker compose ps`)
+- Cross-platform commands to launch `frontend/index.html` (macOS, Linux, Windows)
+- Commands for pausing (`docker compose stop`), resuming (`docker compose up -d`), and full teardown (`docker compose down -v`)
+- Troubleshooting port 8000 conflicts, isolated network firewall issues, and WebSocket connectivity
 
 ---
 
@@ -299,46 +266,3 @@ Once `frontend/index.html` opens in your browser:
 7. **Take the Assignment Quiz**:
    - Click on the **Assignment** tab.
    - Complete the 10 interactive multiple-choice questions with instant feedback and score tracking.
-
----
-
-## 8. Stopping and Resetting the Lab
-
-```bash
-# Temporarily pause containers (preserves state and images)
-docker compose stop
-
-# Resume containers
-docker compose up -d
-
-# Full teardown (removes containers, networks, and volumes)
-docker compose down -v
-
-# Fresh rebuild from scratch
-docker compose up -d --build
-```
-
----
-
-## 9. Troubleshooting & FAQ
-
-### Issue: Port 8000 is already in use
-* **Symptom:** Docker fails with `bind: address already in use: 8000`.
-* **Fix (macOS / Linux):**
-  ```bash
-  lsof -i :8000
-  kill -9 <PID>
-  ```
-* **Fix (Windows):**
-  ```powershell
-  netstat -ano | findstr ":8000"
-  taskkill /PID <PID> /F
-  ```
-
-### Issue: WebSocket shows "connecting" or "disconnected"
-* Ensure the backend container is running: `docker compose ps`.
-* Check backend logs: `docker logs backend --tail 50`.
-* If accessing from a different machine or custom port, edit the port in `docker-compose.yml` or set `window.LAB_API_BASE_URL` in `frontend/index.html`.
-
-### Issue: Docker daemon not running
-* Open Docker Desktop and ensure the engine status icon is green ("Docker Desktop is running").

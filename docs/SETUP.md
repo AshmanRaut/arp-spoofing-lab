@@ -78,7 +78,20 @@ Replace `<repo-url>` with the URL provided by your team or instructor.
 ## Step 3 — Build and Start the Lab
 
 ```bash
+# 1. Build and start all 4 containers in detached mode
 docker compose up -d --build
+
+# 2. Confirm all 4 containers are up and running
+docker compose ps
+```
+
+You should see all 4 services in the `Up` state:
+```text
+NAME       IMAGE                       COMMAND                  STATUS
+attacker   arp-spoofing-lab-attacker   "/entrypoint.sh"         Up
+backend    arp-spoofing-lab-backend    "uvicorn app:app ..."    Up (port 8000)
+gateway    arp-spoofing-lab-gateway    "/entrypoint.sh"         Up
+victim     arp-spoofing-lab-victim     "/entrypoint.sh"         Up
 ```
 
 What this does:
@@ -86,13 +99,23 @@ What this does:
 - **`-d`** runs everything in the background (detached mode).
 - On first run, Docker downloads the base Alpine/Python images (~100–150 MB total). Subsequent starts are faster.
 
-Wait about 10–20 seconds for all containers to reach a running state, then open:
+### Opening the Frontend
 
-```
-frontend/index.html
-```
+Once the containers are running, open `frontend/index.html` in your web browser:
 
-in your web browser (double-click the file, or use File → Open in your browser).
+- **macOS Terminal:**
+  ```bash
+  open frontend/index.html
+  ```
+- **Linux Terminal:**
+  ```bash
+  xdg-open frontend/index.html
+  ```
+- **Windows (PowerShell):**
+  ```powershell
+  start frontend\index.html
+  ```
+- **Graphical File Explorer:** Double-click `frontend/index.html` or drag it into any modern web browser (Chrome, Firefox, Safari, Edge). No local web server or build tool is needed.
 
 ---
 
@@ -117,8 +140,11 @@ Inside the browser page, follow the **Procedure** tab. The basic flow is:
 ## Step 5 — Stop or Reset the Lab
 
 ```bash
-# Stop containers (they can be restarted quickly with `docker compose start`)
+# Temporarily pause containers (preserves state and images)
 docker compose stop
+
+# Resume paused containers
+docker compose up -d
 
 # Full reset — removes containers, volumes, and the isolated network
 docker compose down -v
@@ -183,6 +209,28 @@ Alternatively, change the port mapping in `docker-compose.yml` from `"8000:8000"
 - **Third-party antivirus (Avast, Kaspersky, etc.):** Temporarily disable "Network Shield" or "Packet Filter" features, restart Docker Desktop, then try again.
 - **Corporate VPN:** Some VPN clients (especially split-tunnel VPNs) conflict with Docker's virtual networks. Disconnect from the VPN, restart Docker Desktop, and run the lab.
 - **General check:** Run `docker network ls` — you should see a network named `arp-spoofing-lab_arp-lab-net`. If it is missing, run `docker compose down -v && docker compose up -d --build`.
+
+---
+
+### Error 4: WebSocket shows "connecting" or "disconnected"
+
+**Symptom:** In the top header of `frontend/index.html`, the status dot remains yellow ("connecting") or turns red ("disconnected"). Live logs and ARP updates do not stream in.
+
+**Fix:**
+- Confirm the backend container is running:
+  ```bash
+  docker compose ps
+  ```
+  Ensure `backend` is listed as `Up`.
+- Check the backend logs for any startup crashes or port errors:
+  ```bash
+  docker logs backend --tail 50
+  ```
+- Test if the backend REST API responds directly in your terminal:
+  ```bash
+  curl http://localhost:8000/api/state
+  ```
+- If accessing from a remote VM, WSL 2 host IP, or non-standard port, configure `window.LAB_API_BASE_URL` inside `frontend/index.html` or update the port binding in `docker-compose.yml`.
 
 ---
 
