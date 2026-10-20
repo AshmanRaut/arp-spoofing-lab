@@ -19,6 +19,7 @@ Mark each item: **PASS**, **FAIL**, or **SKIP** (with a reason).
 | 1.2 | Run `docker compose up -d --build` from the repo root | All 4 services (`gateway`, `victim`, `attacker`, `backend`) reach `running` state; no errors printed | **PASS** |
 | 1.3 | Open `frontend/index.html` in a browser | All 8 tabs render without JavaScript console errors | **PASS** |
 | 1.4 | No files outside the repo directory are created or modified during setup | Verify with `git status` — only the repo files changed | **PASS** |
+| 1.5 | Simulation tab sidebar displays Controls and Activity Log directly at top | Redundant duplicate module list is removed; Controls and Activity Log are immediately accessible | **PASS** |
 
 ---
 
@@ -41,7 +42,7 @@ Mark each item: **PASS**, **FAIL**, or **SKIP** (with a reason).
 | 3.1 | Click **Start Attack** → select **MITM** | Backend emits `{"type":"attack_state","active":true,"mode":"mitm"}` event on WebSocket | **PASS** |
 | 3.2 | Within ~5 seconds, check victim's ARP table: `docker exec victim ip neigh` | `10.10.10.1` now resolves to the **attacker's MAC** (`10.10.10.66`'s MAC) | **PASS** |
 | 3.3 | Within ~5 seconds, check gateway's ARP table: `docker exec gateway ip neigh` | `10.10.10.10` now resolves to the **attacker's MAC** | **PASS** |
-| 3.4 | Frontend SVG diagram shows the gateway-arrow in **red** within ~2 seconds of the `arp_update` event | Arrow colour changes to red with dashed stroke | **PASS** |
+| 3.4 | Frontend SVG topology map visualizes the attack in real-time within ~2 seconds of the `arp_update` event | Node cards display POISONED state; red forged ARP injection curves appear; amber intercepted packet flow and purple MITM relayed packet flows animate; direct link shows severed | **PASS** |
 | 3.5 | `GET /api/state` returns ARP tables reflecting the poisoned state | `"mac"` fields show attacker's MAC for both victim and gateway entries | **PASS** |
 | 3.6 | Click **Stop Attack**, wait 5 seconds, check `docker exec victim ip neigh` again | ARP entries restored to real MACs (stop_poison() sent correct replies) | **PASS** |
 | 3.7 | Click **Start Attack** → select **DoS** | `docker exec victim ping -c 3 10.10.10.1` fails (100% packet loss) while attack is active | **PASS** |
@@ -53,8 +54,8 @@ Mark each item: **PASS**, **FAIL**, or **SKIP** (with a reason).
 | # | Check | Expected Result | Status |
 |---|---|---|---|
 | 4.1 | With the lab running (no attack active), click **Toggle Mitigation ON** | Backend applies static ARP entries on victim and gateway; emits `{"type":"mitigation_state","enabled":true}` event | **PASS** |
-| 4.2 | Start MITM attack while mitigation is ON | `docker exec victim ip neigh` still shows the **real** gateway MAC (static entry not overwritten) | **PASS** |
-| 4.3 | Frontend status badge changes to **"Running — Protected"** when mitigation is enabled | Badge text and colour update correctly | **PASS** |
+| 4.2 | Start MITM attack while mitigation is ON | `docker exec victim ip neigh` still shows the **real** gateway MAC (static entry not overwritten); SVG diagram displays static ARP deflection shields actively deflecting the forged replies | **PASS** |
+| 4.3 | Frontend status badge changes to **"Protected (Static ARP)"** when mitigation is enabled | Badge text and colour update correctly | **PASS** |
 | 4.4 | Click **Toggle Mitigation OFF** | Static ARP entries are removed; ARP poisoning becomes effective again within ~5 seconds | **PASS** |
 
 ---

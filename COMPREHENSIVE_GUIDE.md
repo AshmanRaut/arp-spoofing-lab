@@ -268,14 +268,19 @@ Once `frontend/index.html` opens in your browser:
 1. **Verify Connection**:
    - In the top-right header, confirm the WebSocket status dot is green (**`connected`**) and the lab status badge shows **`Running — Vulnerable`**.
 2. **Review Normal Communication**:
-   - On the **Simulation** tab, inspect the SVG diagram.
-   - The arrow from **Victim** to **Gateway** is solid **teal** and shows the Gateway's legitimate MAC address.
+   - On the **Simulation** tab, inspect the Live ARP Network Map.
+   - The direct horizontal link between **Victim Target** and **Default Gateway** is solid vibrant **teal** and shows traveling animated packet dots (green ICMP Echo Request / cyan ICMP Echo Reply).
+   - Both node cards display authentic physical NIC MACs and genuine kernel ARP bindings (`✓ Authentic Gateway` and `✓ Authentic Victim`).
+   - The sidebar displays **Controls** and **Activity Log** right at the top without any redundant tab duplicates.
 3. **Execute MITM Attack**:
-   - Set the attack dropdown to **`MITM`**.
-   - Click the **Start Attack** button.
-   - Notice the activity log immediately records the attack launch.
-   - Within 2 seconds, the arrow from Victim to Gateway turns **dashed red**, and its MAC label changes to the **Attacker's MAC**.
-   - The status badge switches to **`Under Attack`**.
+   - Set the attack dropdown to **`MITM`** and click **Start Attack**.
+   - Within 2 seconds:
+     - The direct link is severed (`Direct Path Severed (Traffic Diverted)`).
+     - Two red curves fire animated forged ARP reply bursts from the Attacker into Victim and Gateway (`⚡ Forged ARP: 10.10.10.1=Attacker`).
+     - An amber animated curve shows outbound frames from Victim being intercepted by the Attacker (`① Intercepted Frame (Dst MAC = Attacker)`).
+     - A purple animated curve shows the Attacker relaying frames to the Gateway (`② Relayed to Gateway (ip_forward=1)`).
+     - Both Victim and Gateway node cards pulse red and update their live ARP caches to **`⚠️ POISONED!`**.
+     - The topology card header badge switches to **`MITM Attack: Intercepting & Relaying`**, and the bottom explainer banner provides a live explanation of Layer 2 redirection.
 4. **Inspect Inside the Container (Optional)**:
    In your terminal, run:
    ```bash
@@ -284,11 +289,13 @@ Once `frontend/index.html` opens in your browser:
    You will see `10.10.10.1` now resolves to the attacker's MAC address!
 5. **Enable Mitigation (Defense)**:
    - Toggle the switch **`Mitigation enabled`** to ON.
-   - Static ARP entries are pinned in the Linux kernel.
-   - The status badge updates to **`Running — Protected`**.
+   - Static ARP entries are pinned in the Linux kernel (`PERMANENT`).
+   - Blue deflection shields (**`🛡️ Static ARP Blocked`**) appear on both Victim and Gateway, deflecting the forged replies.
+   - The direct communication link between Victim and Gateway is restored and protected.
+   - The status badge updates to **`Protected (Static ARP)`**.
 6. **Stop Attack & Clean Up**:
    - Click **Stop Attack**.
-   - The arrow turns back to **teal**, and the authentic gateway MAC is restored.
+   - The authentic gateway MAC is restored, forged packet streams stop, and the diagram returns to normal.
 7. **Take the Assignment Quiz**:
    - Click on the **Assignment** tab.
    - Complete the 10 interactive multiple-choice questions with instant feedback and score tracking.

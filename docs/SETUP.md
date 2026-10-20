@@ -100,11 +100,17 @@ in your web browser (double-click the file, or use File → Open in your browser
 
 Inside the browser page, follow the **Procedure** tab. The basic flow is:
 
-1. Click **Start Lab** — starts the three containers (gateway, victim, attacker).
-2. Click **Start Attack** and choose **MITM** or **DoS** mode.
-3. Observe the ARP diagram: an arrow turns **red** when the victim's ARP cache is poisoned.
-4. Click **Toggle Mitigation** to apply static ARP entries and watch the colour change.
-5. Click **Stop Attack**, then **Stop Lab** when finished.
+1. Click **Start Lab** — starts the three containers (`gateway`, `victim`, `attacker`).
+2. Observe normal traffic: Animated traveling packet dots (green ICMP Request / cyan Reply) flow directly between the Victim and Gateway cards.
+3. Select an attack mode (**MITM** or **DoS**) from the dropdown and click **Start Attack**.
+4. Observe the live animated topology map:
+   - Forged ARP reply injection curves stream red packets from the Attacker into Victim and Gateway.
+   - Outbound frames from the Victim are physically redirected along an amber path to the Attacker (`① Intercepted Frame`).
+   - In **MITM mode**, a purple path shows the Attacker relaying frames to the Gateway (`② Relayed to Gateway`).
+   - In **DoS mode**, frames are dropped into a red blackhole zone (`② BLACKHOLE`).
+   - The Victim and Gateway node cards pulse red and update their ARP tables to show `⚠️ POISONED!`.
+5. Toggle **Mitigation enabled** to ON — static ARP entries lock the kernel neighbor tables, blue deflection shields (`🛡️ Static ARP Blocked`) appear, and direct legitimate communication is restored.
+6. Click **Stop Attack**, then **Stop Lab** when finished.
 
 ---
 
