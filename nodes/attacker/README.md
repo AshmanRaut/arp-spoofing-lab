@@ -4,7 +4,7 @@
 
 The attacker container runs `arp_spoof.py`, a self-contained Scapy script that sends forged ARP replies to redirect traffic between the victim and the gateway through the attacker node.
 
-The script requires `NET_RAW` and `NET_ADMIN` Linux capabilities (already granted in `docker-compose.yml`) because it opens raw sockets to send ARP packets and writes to `/proc/sys/net/ipv4/ip_forward`.
+The script requires `NET_RAW` and `NET_ADMIN` Linux capabilities, as well as `sysctls: - net.ipv4.ip_forward=1` (all granted in `docker-compose.yml`), because it opens raw sockets to send ARP packets and writes to `/proc/sys/net/ipv4/ip_forward`.
 
 The backend (Module 2) controls poisoning **exclusively** via `docker exec` against the `attacker` container. It should never exec into `gateway` or `victim` to run attack logic.
 

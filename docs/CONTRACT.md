@@ -25,3 +25,36 @@ All 4 modules must agree on this. Copy this section verbatim into `docs/CONTRACT
 ```
 
 Everyone builds against this contract from day one; nobody waits for someone else's code to exist.
+
+---
+
+### Detailed Schema for `GET /api/state`
+
+```json
+{
+  "lab_status": "running",
+  "lab_running": true,
+  "containers": {
+    "gateway": "running",
+    "victim": "running",
+    "attacker": "running"
+  },
+  "real_macs": {
+    "gateway": "0a:2b:6a:55:16:2e",
+    "victim": "8a:e9:32:9e:6b:ef",
+    "attacker": "92:c3:09:82:08:1e"
+  },
+  "arp_tables": {
+    "victim": [
+      { "ip": "10.10.10.1", "mac": "0a:2b:6a:55:16:2e" }
+    ],
+    "gateway": [
+      { "ip": "10.10.10.10", "mac": "8a:e9:32:9e:6b:ef" }
+    ]
+  },
+  "attack_active": false,
+  "attack_mode": null,
+  "mitigation_enabled": false
+}
+```
+
