@@ -52,6 +52,58 @@ const MODULE_ICONS = {
   Simulation: 'SI', Assignment: 'AS', References: 'RE', Feedback: 'FB',
 };
 
+/* ─── Reference Library Data ───────────────────────────────── */
+const REFERENCES = [
+  {
+    tag: 'IETF Standard',
+    tagClass: 'tag-teal',
+    title: 'RFC 826 — An Ethernet Address Resolution Protocol',
+    author: 'David C. Plummer (1982)',
+    desc: 'The foundational IETF standard defining packet structure, cache algorithms, and resolution mechanics for Layer 2/3 translation.',
+    url: 'https://datatracker.ietf.org/doc/html/rfc826'
+  },
+  {
+    tag: 'Textbook Citation',
+    tagClass: 'tag-blue',
+    title: 'Computer Networking: A Top-Down Approach (Ch. 6)',
+    author: 'J. Kurose & K. Ross',
+    desc: 'Comprehensive coverage of switched local area networks, Ethernet framing, link-layer addressing, and host-to-router ARP cycles.',
+    url: ''
+  },
+  {
+    tag: 'Reference Guide',
+    tagClass: 'tag-amber',
+    title: 'Data Communications and Networking (ARP/RARP Section)',
+    author: 'Behrouz A. Forouzan',
+    desc: 'Detailed protocol format diagrams, proxy ARP architecture, and Layer 2 broadcast domain address mapping theory.',
+    url: ''
+  },
+  {
+    tag: 'MITRE ATT&CK',
+    tagClass: 'tag-red',
+    title: 'T1557.002: Adversary ARP Cache Poisoning',
+    author: 'MITRE Enterprise Framework',
+    desc: 'Adversary technique profile, real-world weaponization, detection procedures, and enterprise mitigation strategies.',
+    url: 'https://attack.mitre.org/techniques/T1557/002/'
+  },
+  {
+    tag: 'Vendor Security Guide',
+    tagClass: 'tag-teal',
+    title: 'Cisco Systems — Dynamic ARP Inspection (DAI) Configuration',
+    author: 'Cisco Catalyst Switch Security Documentation',
+    desc: 'Enterprise switch defense using DHCP snooping binding tables, untrusted port rate limiting, and hardware packet inspection.',
+    url: 'https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst6500/ios/12-2SX/configuration/guide/book/dynarp.html'
+  },
+  {
+    tag: 'Packet Analysis',
+    tagClass: 'tag-blue',
+    title: 'Wireshark Protocol Wiki — Address Resolution Protocol (ARP)',
+    author: 'Wireshark Foundation',
+    desc: 'Protocol dissections, sample PCAP packet captures, and detecting gratuitous ARP anomaly signatures in network traffic.',
+    url: 'https://wiki.wireshark.org/ARP'
+  }
+];
+
 /* ─── Quiz data (all 10 questions from content/quiz.json) ───── */
 const QUIZ = [
   {
@@ -705,14 +757,24 @@ function renderQuiz() {
   const done = state.quizIndex >= QUIZ.length;
   if (done) {
     panel.innerHTML = `
-      <div class="intro-block">
-        <span class="intro-label">ARP / Virtual Lab</span>
-        <h2>Assignment</h2>
-        <p>Answer each question to check your understanding.</p>
-      </div>
-      <div class="quiz-score-card">
-        <p class="quiz-score">Score: ${state.quizScore} / ${QUIZ.length}</p>
-        <button class="btn-primary-pill" id="quiz-restart">Restart quiz</button>
+      <div class="quiz-container">
+        <div class="intro-block">
+          <span class="intro-label">ARP / Virtual Lab</span>
+          <h2>Assignment Completed</h2>
+          <p>Review your results and restart whenever you'd like to test your understanding again.</p>
+        </div>
+        <div class="quiz-score-card">
+          <p class="quiz-score">${state.quizScore} / ${QUIZ.length}</p>
+          <p style="color:var(--text-main);font-weight:700;font-size:16px;margin-bottom:6px">
+            ${state.quizScore >= 8 ? '🎉 Outstanding Result!' : (state.quizScore >= 5 ? '👍 Good Effort!' : '📖 Room for Improvement')}
+          </p>
+          <p style="color:var(--text-secondary);margin-bottom:24px;font-size:13.5px;line-height:1.6">
+            ${state.quizScore >= 8
+              ? 'You have demonstrated a comprehensive understanding of ARP mechanics, cache poisoning, and Layer 2 mitigations.'
+              : 'Review the Theory and Procedure tabs to reinforce your knowledge of ARP request/reply cycles and DAI defenses.'}
+          </p>
+          <button class="btn-primary-pill" id="quiz-restart">↺ Restart Quiz</button>
+        </div>
       </div>`;
     $('#quiz-restart').addEventListener('click', () => {
       state.quizIndex = 0; state.quizScore = 0; state.quizAnswer = null;
@@ -722,31 +784,44 @@ function renderQuiz() {
   }
 
   const q = QUIZ[state.quizIndex];
+  const progressPercent = Math.round(((state.quizIndex + 1) / QUIZ.length) * 100);
+
   panel.innerHTML = `
-    <div class="intro-block">
-      <span class="intro-label">ARP / Virtual Lab</span>
-      <h2>Assignment</h2>
-      <p>Answer each question to check your understanding.</p>
-    </div>
-    <div class="quiz-card">
-      <p class="quiz-question">${q.question}</p>
-      <div class="quiz-options">
-        ${q.options.map((opt, idx) => `
-          <button class="quiz-option" data-idx="${idx}" ${state.quizAnswer !== null ? 'disabled' : ''}
-            style="${state.quizAnswer === idx
-              ? idx === q.correctIndex
-                ? 'background:#EBF7F4;border:1.5px solid #2A8C76;color:#2A8C76;'
-                : 'background:#FDF0EF;border:1.5px solid #E06C62;color:#E06C62;'
-              : ''}">
-            ${opt}
-          </button>`).join('')}
+    <div class="quiz-container">
+      <div class="intro-block">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <span class="intro-label">ARP / Virtual Lab</span>
+          <span class="quiz-progress-badge">Question ${state.quizIndex + 1} of ${QUIZ.length}</span>
+        </div>
+        <h2>Knowledge Assessment</h2>
+        <p>Answer each question to test your mastery of ARP protocol fundamentals, cache poisoning mechanics, and mitigation techniques.</p>
+        <div class="quiz-progress-track">
+          <div class="quiz-progress-fill" style="width:${progressPercent}%"></div>
+        </div>
       </div>
-      ${state.quizAnswer !== null ? `
-        <div class="quiz-explanation">
-          ${q.explanation}
-          <br>
-          <button class="btn-primary-pill" id="quiz-next" style="margin-top:12px">Next question</button>
-        </div>` : ''}
+      <div class="quiz-card">
+        <p class="quiz-question">${q.question}</p>
+        <div class="quiz-options">
+          ${q.options.map((opt, idx) => `
+            <button class="quiz-option" data-idx="${idx}" ${state.quizAnswer !== null ? 'disabled' : ''}
+              style="${state.quizAnswer === idx
+                ? idx === q.correctIndex
+                  ? 'background:#EBF7F4;border:1.5px solid #2A8C76;color:#1B6554;'
+                  : 'background:#FDF0EF;border:1.5px solid #E06C62;color:#B91C1C;'
+                : ''}">
+              <span class="quiz-opt-letter">${String.fromCharCode(65 + idx)}</span>
+              <span>${opt}</span>
+            </button>`).join('')}
+        </div>
+        ${state.quizAnswer !== null ? `
+          <div class="quiz-explanation">
+            <strong style="color:${state.quizAnswer === q.correctIndex ? '#1B6554' : '#B91C1C'}">
+              ${state.quizAnswer === q.correctIndex ? '✓ Correct Answer!' : '✕ Incorrect'}
+            </strong>
+            <p style="margin-top:6px;line-height:1.6">${q.explanation}</p>
+            <button class="btn-primary-pill" id="quiz-next" style="margin-top:14px">Next question →</button>
+          </div>` : ''}
+      </div>
     </div>`;
 
   $$('.quiz-option', panel).forEach(btn => {
@@ -802,7 +877,7 @@ function buildUI() {
     <!-- Header -->
     <header id="app-header">
       <div class="max-w-7xl header-inner">
-        <div class="flex items-center gap-3">
+        <div class="header-left">
           <button class="back-btn-circle" aria-label="Go back" onclick="history.back()">&#8592;</button>
           <div>
             <h1>ARP Spoofing / Virtual Lab</h1>
@@ -812,19 +887,19 @@ function buildUI() {
         <div class="header-right">
           <div class="edtech-pill">
             <span class="status-dot" id="ws-dot"></span>
-            <span id="ws-text" style="font-family:'JetBrains Mono',monospace;font-size:11px">connecting</span>
+            <span id="ws-text" style="font-family:'JetBrains Mono',monospace;font-size:11.5px">connecting</span>
           </div>
           <div class="edtech-pill">
-            <span id="lab-status-text" style="font-size:11px;font-weight:600">Stopped</span>
+            <span id="lab-status-text" style="font-size:11.5px;font-weight:700">Stopped</span>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Main content -->
-    <main class="max-w-7xl px-5 py-6">
+    <!-- Main content container -->
+    <main class="max-w-7xl main-content">
 
-      <!-- Tab bar -->
+      <!-- Navigation Tab Bar -->
       <nav id="tab-bar" role="tablist">
         ${TABS.map(t => `<button class="tab-btn" data-tab="${t}" role="tab">${t}</button>`).join('')}
       </nav>
@@ -833,8 +908,25 @@ function buildUI() {
       <section id="panel-Aim" class="tab-panel" role="tabpanel">
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>Aim</h2>
-          <p>Demonstrate ARP spoofing and observe its effect on network communication in a controlled Docker-based environment.</p>
+          <h2>Aim of the Experiment</h2>
+          <p>Demonstrate the fundamental operation of the Address Resolution Protocol (ARP), analyze why the lack of authentication leaves networks susceptible to ARP Cache Poisoning, and observe how Man-in-the-Middle (MITM) and Denial of Service (DoS) attacks manipulate network communications in a sandboxed Docker environment.</p>
+        </div>
+        <div class="grid-feature-cards">
+          <div class="feature-card">
+            <div class="feature-icon-badge">L2</div>
+            <h3>OSI Layer 2 Mechanics</h3>
+            <p>Understand how Layer 3 logical IP addresses are mapped to physical hardware MAC addresses and stored in operating system kernel ARP tables.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon-badge">⚡</div>
+            <h3>Live Packet Injection</h3>
+            <p>Witness real raw-socket Scapy scripts injecting forged Gratuitous ARP frames to overwrite remote caches and hijack legitimate traffic flows.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon-badge">🛡️</div>
+            <h3>Defensive Engineering</h3>
+            <p>Evaluate countermeasures including OS-level Static ARP entry enforcement and enterprise switch-level Dynamic ARP Inspection (DAI).</p>
+          </div>
         </div>
       </section>
 
@@ -842,21 +934,39 @@ function buildUI() {
       <section id="panel-Objective" class="tab-panel" role="tabpanel">
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>Objective</h2>
-          <p>By the end of the lab, you should be able to:</p>
+          <h2>Learning Objectives</h2>
+          <p>By completing this laboratory experiment, you will gain the theoretical foundation and practical skills to:</p>
         </div>
-        <ul class="objective-list">
-          ${[
-            'Explain ARP request and reply behavior.',
-            'Identify a poisoned ARP cache entry from live events.',
-            'Contrast MITM interception with denial of service.',
-            'Apply static ARP and Dynamic ARP Inspection defenses.',
-          ].map(item => `
-            <li class="objective-item">
-              <span class="check-icon">✔</span>
-              <span>${item}</span>
-            </li>`).join('')}
-        </ul>
+        <div class="objective-cards-grid">
+          <div class="objective-card">
+            <div class="obj-check-circle">✓</div>
+            <div class="obj-content">
+              <h4>Explain ARP Protocol Mechanics</h4>
+              <p>Analyze broadcast ARP Requests (ff:ff:ff:ff:ff:ff), unicast ARP Replies, and dynamic cache retention timers across networked nodes.</p>
+            </div>
+          </div>
+          <div class="objective-card">
+            <div class="obj-check-circle">✓</div>
+            <div class="obj-content">
+              <h4>Identify Poisoned ARP Cache Entries</h4>
+              <p>Spot cryptographic and addressing anomalies where multiple distinct IPs (e.g. 10.10.10.1 and 10.10.10.66) resolve to the identical MAC address.</p>
+            </div>
+          </div>
+          <div class="objective-card">
+            <div class="obj-check-circle">✓</div>
+            <div class="obj-content">
+              <h4>Contrast MITM Interception vs. DoS Blackholing</h4>
+              <p>Understand the impact of kernel IP forwarding (ip_forward=1 vs. 0) in maintaining transparent eavesdropping versus terminating victim connectivity.</p>
+            </div>
+          </div>
+          <div class="objective-card">
+            <div class="obj-check-circle">✓</div>
+            <div class="obj-content">
+              <h4>Implement and Verify Defensive Mitigations</h4>
+              <p>Configure immutable static ARP bindings in Linux kernel caches and examine hardware DAI validation against DHCP snooping tables.</p>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ── THEORY ── -->
@@ -864,18 +974,18 @@ function buildUI() {
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
           <h2>Theory & Protocol Mechanics</h2>
-          <p>Address Resolution Protocol (ARP, RFC 826) bridges the gap between Layer 3 logical IP addresses and Layer 2 physical MAC addresses on local broadcast domains.</p>
+          <p>Address Resolution Protocol (ARP, RFC 826) operates at the Data Link/Network boundary, enabling IP packets to be encapsulated into Ethernet frames on local broadcast domains.</p>
         </div>
         <div class="theory-grid">
           ${[
-            ['Layer 2 vs Layer 3', 'Ethernet frames require destination MAC addresses. When Host A wishes to transmit an IP packet to Host B on the same subnet, it must first resolve B’s MAC address using an ARP Request.'],
+            ['Layer 2 vs Layer 3', 'Ethernet frames require destination MAC addresses. When Host A transmits an IP packet to Host B on the same subnet, it must first resolve B’s physical MAC address using an ARP Request.'],
             ['ARP Request / Reply', 'ARP Requests are broadcasted (dst ff:ff:ff:ff:ff:ff) asking "Who has IP X?". The rightful owner responds with a unicast ARP Reply stating "IP X is at MAC Y".'],
-            ['The ARP Cache', 'Operating systems cache learned IP-to-MAC associations for 30–120 seconds to prevent constant broadcast storms. Entries are mutable and continuously refreshed.'],
-            ['No Authentication', 'Designed in 1982 for trusted networks, ARP has zero cryptographic authentication. Any device on the subnet can claim ownership of any IP address without proof.'],
+            ['The ARP Cache', 'Operating systems cache learned IP-to-MAC associations for 30–120 seconds to prevent broadcast storms. Entries are mutable and continuously updated by incoming frames.'],
+            ['Lack of Authentication', 'Designed in 1982 for trusted academic LANs, ARP has zero cryptographic authentication. Any device on the subnet can claim ownership of any IP without proof.'],
             ['Gratuitous ARP', 'Unsolicited ARP announcements update neighbors of IP/MAC changes (e.g. NIC failover). Attackers exploit this to silently overwrite remote caches without prior requests.'],
-            ['MITM vs DoS', 'In MITM, the attacker enables IP forwarding to invisibly intercept and relay traffic. In DoS, forwarding is disabled, causing all redirected packets to be silently dropped.'],
-            ['Static ARP Defense', 'Permanent IP-to-MAC bindings configured manually in the OS cache cannot be overwritten by incoming forged ARP replies, but this approach does not scale easily.'],
-            ['Dynamic ARP Inspection', 'Enterprise switches with DAI validate incoming ARP packets against the DHCP Snooping Binding Table, dropping forged packets at the switch-port level.'],
+            ['MITM vs DoS', 'In MITM, the attacker enables kernel IP forwarding to invisibly relay packets. In DoS, forwarding is disabled, causing all redirected packets to be silently dropped.'],
+            ['Static ARP Defense', 'Permanent IP-to-MAC bindings configured manually in the OS cache cannot be overwritten by incoming forged ARP replies, though manual deployment does not scale easily.'],
+            ['Dynamic ARP Inspection', 'Enterprise switches with DAI validate incoming ARP packets against the DHCP Snooping Binding Table, dropping forged packets at the physical switch-port level.'],
             ['HTTPS / VPN Protections', 'ARP poisoning is a Layer 2 attack. End-to-end encryption (TLS/HTTPS, VPN tunnels) ensures that even if traffic flows through an attacker, the payload remains unreadable ciphertext.']
           ].map(([title, text]) => `
             <div class="theory-card">
@@ -889,17 +999,47 @@ function buildUI() {
       <section id="panel-Procedure" class="tab-panel" role="tabpanel">
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>Procedure</h2>
-          <p>Follow the sequence in the Simulation tab.</p>
+          <h2>Step-by-Step Laboratory Procedure</h2>
+          <p>Follow this systematic sequence to boot the container network, launch targeted ARP cache poisoning attacks, and evaluate defenses.</p>
         </div>
-        <ol class="procedure-list">
-          ${['Start Lab','Start Attack','Observe poisoned ARP entry','Toggle Mitigation','Stop Attack','Reset Lab']
-            .map((step, i) => `
-              <li class="procedure-item">
-                <span class="step-badge">${String(i+1).padStart(2,'0')}</span>
-                <span>${step}</span>
-              </li>`).join('')}
-        </ol>
+        <div class="procedure-cards-grid">
+          <div class="procedure-card">
+            <span class="procedure-step-number">01</span>
+            <h4>Start the Lab Environment</h4>
+            <p>Navigate to the Simulation tab and click <strong>Start Lab</strong>. This boots the isolated Docker bridge network and initializes Victim, Gateway, and Attacker nodes.</p>
+            <span class="procedure-expected">Expected: Status shows "Running — Vulnerable"</span>
+          </div>
+          <div class="procedure-card">
+            <span class="procedure-step-number">02</span>
+            <h4>Select Attack Mode & Launch</h4>
+            <p>Select either <strong>MITM</strong> (packet relaying) or <strong>DoS</strong> (packet blackhole) from the dropdown and click <strong>Start Attack</strong> to begin transmitting forged ARP packets.</p>
+            <span class="procedure-expected">Expected: Scapy engine begins injecting forged frames</span>
+          </div>
+          <div class="procedure-card">
+            <span class="procedure-step-number">03</span>
+            <h4>Observe Kernel Cache Poisoning</h4>
+            <p>Watch the Live Network Map update in real time. The Victim node turns red as its kernel table maps the Gateway IP (10.10.10.1) to the Attacker's MAC address.</p>
+            <span class="procedure-expected">Expected: Traffic flows reroute through the Attacker node</span>
+          </div>
+          <div class="procedure-card">
+            <span class="procedure-step-number">04</span>
+            <h4>Toggle Static ARP Mitigation</h4>
+            <p>Switch on the <strong>Mitigation enabled</strong> toggle. This installs authoritative static ARP entries in the kernel table, preventing forged replies from overriding bindings.</p>
+            <span class="procedure-expected">Expected: Blue shield active; direct legitimate path restored</span>
+          </div>
+          <div class="procedure-card">
+            <span class="procedure-step-number">05</span>
+            <h4>Stop Attack & Verify Recovery</h4>
+            <p>Click <strong>Stop Attack</strong>. The attacker terminates its packet injection loop and transmits corrective ARP frames to restore authentic hardware bindings.</p>
+            <span class="procedure-expected">Expected: Red attack indicators subside to normal green state</span>
+          </div>
+          <div class="procedure-card">
+            <span class="procedure-step-number">06</span>
+            <h4>Complete Assessment & Feedback</h4>
+            <p>Test your knowledge on the <strong>Assignment</strong> tab with the 10-question quiz, then submit your reflections on the <strong>Feedback</strong> tab.</p>
+            <span class="procedure-expected">Expected: Score tracked with detailed explanations</span>
+          </div>
+        </div>
       </section>
 
       <!-- ── SIMULATION ── -->
@@ -911,18 +1051,22 @@ function buildUI() {
           <span class="alert-text">Backend not connected — retrying in the background.</span>
         </div>
 
-        <!-- Two-column grid -->
+        <!-- Responsive Simulation Grid (2 columns on PC, 1 on Mobile) -->
         <div class="sim-grid">
 
           <!-- LEFT: Topology diagram -->
           <div class="topology-card">
             <div class="topology-card-header">
-              <div style="display:flex;align-items:center;gap:10px">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="title">Live ARP Network Map</span>
                 <span id="topology-attack-badge" class="badge-tag tag-teal">Normal Direct Traffic</span>
               </div>
               <span class="subtitle">10.10.10.0/24 Isolated Bridge</span>
             </div>
+
+            <!-- Mobile pan indicator hint -->
+            <div class="mobile-pan-hint">↔ Swipe horizontally to explore full network topology</div>
+
             <div class="topology-svg-wrap">
               <svg id="topology-svg" viewBox="0 0 680 430" role="img" aria-label="Live ARP network topology diagram">
                 <defs>
@@ -967,13 +1111,13 @@ function buildUI() {
             </div>
           </div>
 
-          <!-- RIGHT: Sidebar -->
+          <!-- RIGHT: Sidebar Controls & Log -->
           <div class="sidebar">
 
             <!-- Controls collapsible -->
             <div class="controls-panel">
               <button class="section-header-strip flat" id="controls-toggle" aria-expanded="true">
-                <span>Controls</span>
+                <span>Lab Controls</span>
                 <span class="chevron-circle">▾</span>
               </button>
               <div id="controls-body" class="controls-body">
@@ -995,25 +1139,31 @@ function buildUI() {
                 </button>
 
                 <!-- Attack mode select -->
-                <select class="native-select" id="attack-mode-select">
-                  <option value="mitm">MITM</option>
-                  <option value="dos">DoS</option>
-                </select>
+                <div>
+                  <label for="attack-mode-select" style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Attack Mode</label>
+                  <select class="native-select" id="attack-mode-select">
+                    <option value="mitm">Man-in-the-Middle (MITM Interception)</option>
+                    <option value="dos">Denial of Service (DoS Blackhole)</option>
+                  </select>
+                </div>
 
                 <!-- Start Attack -->
                 <button class="btn-primary-pill w-full" data-api="/api/attack/start" id="btn-start-attack" style="justify-content:center">
                   <span class="spinner" style="display:none"></span>
-                  Start Attack
+                  ⚡ Start Attack
                 </button>
 
                 <!-- Stop Attack -->
                 <button class="btn-danger w-full" data-api="/api/attack/stop" id="btn-stop-attack" style="justify-content:center">
-                  Stop Attack
+                  ■ Stop Attack
                 </button>
 
                 <!-- Mitigation toggle -->
                 <div class="mitigation-row">
-                  <span style="font-size:13px;font-weight:500;color:var(--text-main)">Mitigation enabled</span>
+                  <div>
+                    <span style="font-size:13.5px;font-weight:600;color:var(--text-main);display:block">Static ARP Defense</span>
+                    <span style="font-size:11.5px;color:var(--text-secondary)">Lock authoritative IP-MAC bindings</span>
+                  </div>
                   <div class="toggle-wrap">
                     <input type="checkbox" class="toggle-input" id="mitigation-toggle">
                     <label class="toggle-label" for="mitigation-toggle"></label>
@@ -1026,10 +1176,10 @@ function buildUI() {
             <!-- Activity Log collapsible -->
             <div class="log-panel">
               <button class="section-header-strip flat" id="log-toggle" aria-expanded="true">
-                <span>Activity log</span>
+                <span>Live Event Stream</span>
                 <span class="chevron-circle">▾</span>
               </button>
-              <div id="log-body" style="padding:12px">
+              <div id="log-body" style="padding:14px">
                 <div class="log-box" id="log-box">
                   <p style="color:var(--text-secondary)">Waiting for backend events...</p>
                 </div>
@@ -1048,60 +1198,52 @@ function buildUI() {
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
           <h2>References & Further Reading</h2>
-          <p>Primary standards, textbook citations, and security documentation covering ARP analysis and defense.</p>
+          <p>Official RFC specifications, academic textbooks, threat actor profiles, and enterprise defense guides covering ARP security and Layer 2 mitigations.</p>
         </div>
-        <ul class="references-list">
-          <li style="margin-bottom:12px;line-height:1.6">
-            <strong>1. RFC 826 — An Ethernet Address Resolution Protocol (Plummer, 1982)</strong><br>
-            <span style="color:var(--text-secondary);font-size:13px">The foundational IETF specification defining packet structure, cache algorithms, and resolution mechanics.</span>
-          </li>
-          <li style="margin-bottom:12px;line-height:1.6">
-            <strong>2. Kurose, J. & Ross, K. — <em>Computer Networking: A Top-Down Approach</em>, Chapter 6</strong><br>
-            <span style="color:var(--text-secondary);font-size:13px">Covers switched LANs, Ethernet framing, link-layer addressing, and host-to-router ARP cycles.</span>
-          </li>
-          <li style="margin-bottom:12px;line-height:1.6">
-            <strong>3. Forouzan, B. A. — <em>Data Communications and Networking</em>, ARP/RARP Section</strong><br>
-            <span style="color:var(--text-secondary);font-size:13px">Detailed packet format diagrams, proxy ARP, and Layer 2/3 address mapping theory.</span>
-          </li>
-          <li style="margin-bottom:12px;line-height:1.6">
-            <strong>4. MITRE ATT&CK — T1557.002: ARP Cache Poisoning</strong><br>
-            <span style="color:var(--text-secondary);font-size:13px"><a href="https://attack.mitre.org/techniques/T1557/002/" target="_blank" rel="noopener noreferrer" style="color:var(--accent-blue)">https://attack.mitre.org/techniques/T1557/002/</a> — Adversarial adversary profile, real-world usage, and mitigation strategies.</span>
-          </li>
-          <li style="margin-bottom:12px;line-height:1.6">
-            <strong>5. Cisco Systems — Configuring Dynamic ARP Inspection (DAI) Documentation</strong><br>
-            <span style="color:var(--text-secondary);font-size:13px"><a href="https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst6500/ios/12-2SX/configuration/guide/book/dynarp.html" target="_blank" rel="noopener noreferrer" style="color:var(--accent-blue)">Official Cisco Catalyst Switch Guide</a> — DHCP Snooping tables, trusted vs. untrusted ports, and ARP rate limiting.</span>
-          </li>
-          <li style="margin-bottom:12px;line-height:1.6">
-            <strong>6. Wireshark Wiki — Address Resolution Protocol (ARP)</strong><br>
-            <span style="color:var(--text-secondary);font-size:13px"><a href="https://wiki.wireshark.org/ARP" target="_blank" rel="noopener noreferrer" style="color:var(--accent-blue)">https://wiki.wireshark.org/ARP</a> — Protocol dissections, sample packet captures, and detecting gratuitous ARP anomalies.</span>
-          </li>
-        </ul>
+        <div class="references-grid">
+          ${REFERENCES.map(ref => `
+            <div class="reference-card">
+              <div class="ref-header">
+                <span class="badge-tag ${ref.tagClass}">${ref.tag}</span>
+                <span class="ref-author">${ref.author}</span>
+              </div>
+              <h3 class="ref-title">${ref.title}</h3>
+              <p class="ref-desc">${ref.desc}</p>
+              ${ref.url ? `
+                <a href="${ref.url}" target="_blank" rel="noopener noreferrer" class="ref-link-btn">
+                  <span>View Documentation</span>
+                  <span>→</span>
+                </a>` : ''}
+            </div>`).join('')}
+        </div>
       </section>
 
       <!-- ── FEEDBACK ── -->
       <section id="panel-Feedback" class="tab-panel" role="tabpanel">
         <div class="intro-block">
           <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>Feedback</h2>
-          <p>Tell us how the lab supported your learning.</p>
+          <h2>Student Feedback & Lab Evaluation</h2>
+          <p>Help us improve future cybersecurity laboratory modules by sharing your reflections and feedback on this experiment.</p>
         </div>
-        <div class="feedback-card">
-          <label class="form-label">
-            Name (optional)
-            <input class="form-input" type="text" id="feedback-name" placeholder="Your name">
-          </label>
-          <fieldset style="border:none">
-            <legend style="font-size:13px;font-weight:500;color:var(--text-main);margin-bottom:8px">Rating</legend>
-            <div class="rating-row">
-              ${[1,2,3,4,5].map(v => `
-                <button class="rating-btn" data-v="${v}" aria-label="${v} stars" type="button">${v}</button>`).join('')}
-            </div>
-          </fieldset>
-          <label class="form-label">
-            Comment
-            <textarea class="form-input" id="feedback-comment" placeholder="Comment"></textarea>
-          </label>
-          <button class="btn-primary-pill" id="feedback-submit" style="align-self:flex-start">Submit feedback</button>
+        <div class="feedback-container">
+          <div class="feedback-card">
+            <label class="form-label">
+              Your Name (Optional)
+              <input class="form-input" type="text" id="feedback-name" placeholder="Enter your name or student ID">
+            </label>
+            <fieldset style="border:none">
+              <legend style="font-size:13.5px;font-weight:600;color:var(--text-main);margin-bottom:10px">Overall Rating</legend>
+              <div class="rating-row">
+                ${[1,2,3,4,5].map(v => `
+                  <button class="rating-btn" data-v="${v}" aria-label="${v} stars" type="button">${v}</button>`).join('')}
+              </div>
+            </fieldset>
+            <label class="form-label">
+              Observations & Suggestions
+              <textarea class="form-input" id="feedback-comment" placeholder="What concepts were most clear? Did you encounter any difficulties during the simulation?"></textarea>
+            </label>
+            <button class="btn-primary-pill" id="feedback-submit" style="align-self:flex-start">Submit Feedback</button>
+          </div>
         </div>
       </section>
 
