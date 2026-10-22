@@ -91,7 +91,7 @@ The **ARP Spoofing Virtual Lab** is an interactive, browser-based cybersecurity 
 - **MITM Mode vs. DoS Mode**:
   - In **MITM mode**, it sets `/proc/sys/net/ipv4/ip_forward = 1`. Packets redirected to the attacker are inspected and forwarded to their real destination, maintaining connectivity while eavesdropping.
   - In **DoS mode**, it sets `ip_forward = 0`. Traffic redirected to the attacker is silently discarded, causing 100% packet loss for the victim.
-- **Restoration**: Upon receiving `SIGTERM` (when clicking Stop Attack), the script emits 3 corrective ARP replies with genuine Layer 2 (`Ether.src`) and Layer 3 (`ARP.hwsrc`) addresses, flushing the forged entries from both machines' caches.
+- **Restoration**: Upon receiving `SIGTERM` (when clicking Stop Attack), the script emits genuine ARP Replies (`op=2`) as well as broadcast ARP Requests (`op=1`). Emitting an ARP request ensures that passive hosts (such as the default gateway, which does not initiate outbound connections) immediately refresh their Linux neighbor table without dropping unsolicited replies. In addition, the backend API immediately guarantees kernel-level neighbor restoration (`ip neigh replace ... nud reachable`) across both nodes.
 
 ### 3.4 Mitigation Mechanism (Static ARP)
 - When mitigation is enabled, the backend executes `arp -s <ip> <mac>` on both the victim and gateway.
@@ -107,7 +107,9 @@ The **ARP Spoofing Virtual Lab** is an interactive, browser-based cybersecurity 
 - Single-page application built with vanilla HTML5, CSS3, and ES2020 JavaScript.
 - Fully compatible with `file://` protocol; no web server or build tool required.
 - Dynamically queries `/api/state` on launch to learn the real MAC addresses assigned by Docker on the host machine.
-- **Interactive Live Topology & Animated Packet Flow**: Visualizes real packet mechanics in real time with animated SVG flows (direct ICMP/TCP packets in teal/cyan, red forged ARP injection streams, amber intercepted Layer 2 frames diverted to the attacker, and purple MITM relayed frames to the gateway). Detailed node cards render live kernel ARP caches, while deflection shields activate when static ARP mitigation protects the network.
+- **Enlarged Live Network Map & Animated Packet Flows**: Visualizes packet mechanics in high definition on a 1140×560 SVG canvas (direct ICMP/TCP packets in teal/cyan, red forged ARP injection streams, amber intercepted Layer 2 frames diverted to the attacker, and purple MITM relayed frames to the gateway). Node cards display physical NIC MACs, live kernel ARP entries, and active defense deflection shields.
+- **Integrated Kernel ARP Resolution Tables & Delta Tracker**: Displays side-by-side Linux kernel neighbor tables directly within the topology card, highlighting true physical NICs vs. current kernel bindings, real-time poisoning deltas, and routing status.
+- **3-Way View Switcher**: Provides one-click switching between `🔀 Map + Tables`, `🗺️ Map Only`, and `📋 Tables Only` modes.
 
 ---
 
@@ -115,11 +117,11 @@ The **ARP Spoofing Virtual Lab** is an interactive, browser-based cybersecurity 
 
 ```
 arp-spoofing-lab/
-├── COMPREHENSIVE_GUIDE.md           ← Complete architectural, mechanics & API reference guide
 ├── README.md                        ← Integration team metadata & project summary
 ├── lab.yaml                         ← Institutional virtual lab manifest
 ├── docker-compose.yml               ← 4-service topology & isolated network definition
 ├── docs/
+│   ├── COMPREHENSIVE_GUIDE.md       ← Complete architectural, mechanics & API reference guide
 │   ├── CONTRACT.md                  ← Shared REST + WebSocket communication contract
 │   └── SETUP.md                     ← Complete guide for Docker install, execution & troubleshooting
 ├── nodes/                           ← Container definitions for network nodes
@@ -235,34 +237,36 @@ Once `frontend/index.html` opens in your browser:
 1. **Verify Connection**:
    - In the top-right header, confirm the WebSocket status dot is green (**`connected`**) and the lab status badge shows **`Running — Vulnerable`**.
 2. **Review Normal Communication**:
-   - On the **Simulation** tab, inspect the Live ARP Network Map.
-   - The direct horizontal link between **Victim Target** and **Default Gateway** is solid vibrant **teal** and shows traveling animated packet dots (green ICMP Echo Request / cyan ICMP Echo Reply).
-   - Both node cards display authentic physical NIC MACs and genuine kernel ARP bindings (`✓ Authentic Gateway` and `✓ Authentic Victim`).
-   - The sidebar displays **Controls** and **Activity Log** right at the top without any redundant tab duplicates.
+   - On the **Simulation** tab, inspect the enlarged Live ARP Network Map.
+   - The direct horizontal link between **Victim Target** and **Default Gateway** is solid vibrant **teal** with traveling animated packet dots (green ICMP Echo Request / cyan ICMP Echo Reply).
+   - Both node cards display authentic physical NIC MACs and genuine kernel ARP bindings (`✓ AUTHENTIC`).
+   - Below the map, inspect the **Ground Truth Hardware Reference Grid** and the side-by-side **Kernel ARP Resolution Tables** showing verified direct delivery.
+   - Use the top view switcher (`🔀 Map + Tables`, `🗺️ Map Only`, `📋 Tables Only`) to adjust your workspace.
 3. **Execute MITM Attack**:
-   - Set the attack dropdown to **`MITM`** and click **Start Attack**.
+   - Set the attack dropdown to **`Man-in-the-Middle (MITM Interception)`** and click **Start Attack**.
    - Within 2 seconds:
      - The direct link is severed (`Direct Path Severed (Traffic Diverted)`).
-     - Two red curves fire animated forged ARP reply bursts from the Attacker into Victim and Gateway (`⚡ Forged ARP: 10.10.10.1=Attacker`).
-     - An amber animated curve shows outbound frames from Victim being intercepted by the Attacker (`① Intercepted Frame (Dst MAC = Attacker)`).
-     - A purple animated curve shows the Attacker relaying frames to the Gateway (`② Relayed to Gateway (ip_forward=1)`).
-     - Both Victim and Gateway node cards pulse red and update their live ARP caches to **`⚠️ POISONED!`**.
-     - The topology card header badge switches to **`MITM Attack: Intercepting & Relaying`**, and the bottom explainer banner provides a live explanation of Layer 2 redirection.
+     - Two red curves fire animated forged ARP reply bursts from the Attacker into Victim and Gateway (`⚡ Forged: 10.10.10.1=Attacker` and `⚡ Forged: 10.10.10.10=Attacker`).
+     - An amber animated curve shows outbound frames from Victim being intercepted by the Attacker (`① Intercepted Frame`).
+     - A purple animated curve shows the Attacker relaying frames to the Gateway (`② Relayed to Gateway`).
+     - Both Victim and Gateway node cards pulse red and update their live ARP caches to **`⚠️ POISONED`**.
+     - The Live ARP Tables below flash and update in real time with red highlight tags (`⚠️ ATTACKER`), indicating diverted Layer 2 routing.
 4. **Inspect Inside the Container (Optional)**:
    In your terminal, run:
    ```bash
    docker exec victim ip neigh
+   docker exec gateway ip neigh
    ```
-   You will see `10.10.10.1` now resolves to the attacker's MAC address!
+   You will see both machines now map their neighbor IPs to the attacker's rogue MAC!
 5. **Enable Mitigation (Defense)**:
-   - Toggle the switch **`Mitigation enabled`** to ON.
+   - Toggle the switch **`Static ARP Defense`** to ON.
    - Static ARP entries are pinned in the Linux kernel (`PERMANENT`).
-   - Blue deflection shields (**`🛡️ Static ARP Blocked`**) appear on both Victim and Gateway, deflecting the forged replies.
+   - Blue deflection shields (**`🛡️ Static Blocked`**) appear on both Victim and Gateway, deflecting the forged replies.
    - The direct communication link between Victim and Gateway is restored and protected.
    - The status badge updates to **`Protected (Static ARP)`**.
 6. **Stop Attack & Clean Up**:
    - Click **Stop Attack**.
-   - The authentic gateway MAC is restored, forged packet streams stop, and the diagram returns to normal.
+   - Both the Victim Target and Default Gateway immediately revert to **`✓ AUTHENTIC`** (green), forged packet streams terminate, and genuine direct IP/ICMP traffic resumes.
 7. **Take the Assignment Quiz**:
    - Click on the **Assignment** tab.
    - Complete the 10 interactive multiple-choice questions with instant feedback and score tracking.
