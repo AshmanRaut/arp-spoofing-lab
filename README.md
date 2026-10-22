@@ -19,7 +19,7 @@
 
 ## Comprehensive Documentation
 
-For an in-depth explanation of the system architecture, OSI Layer 2 / Layer 3 packet mechanics, Scapy poisoning internals, full REST/WebSocket API contracts, and an end-to-end interactive demo walkthrough, please see **[COMPREHENSIVE_GUIDE.md](COMPREHENSIVE_GUIDE.md)**.
+For an in-depth explanation of the system architecture, OSI Layer 2 / Layer 3 packet mechanics, Scapy poisoning internals, full REST/WebSocket API contracts, and an end-to-end interactive demo walkthrough, please see **[COMPREHENSIVE_GUIDE.md](docs/COMPREHENSIVE_GUIDE.md)**.
 
 ---
 

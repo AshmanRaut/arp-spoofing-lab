@@ -94,7 +94,7 @@ a { text-decoration: none; color: inherit; }
    LAYOUT CONTAINER & UTILITIES
    ============================================================ */
 .max-w-7xl {
-  max-width: 1280px;
+  max-width: 1660px;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
@@ -731,13 +731,13 @@ a { text-decoration: none; color: inherit; }
 /* Grid: 2 columns on PCs & Laptops (>= 1024px), single column on mobile */
 .sim-grid {
   display: grid;
-  gap: 20px;
+  gap: 22px;
   grid-template-columns: 1fr;
   width: 100%;
 }
 @media (min-width: 1024px) {
   .sim-grid {
-    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+    grid-template-columns: minmax(0, 1fr) 330px;
     align-items: start;
   }
 }
@@ -758,15 +758,15 @@ a { text-decoration: none; color: inherit; }
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border-light);
 }
 .topology-card-header .title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--text-main);
 }
 .topology-card-header .subtitle {
@@ -782,7 +782,7 @@ a { text-decoration: none; color: inherit; }
 /* Topology SVG container */
 .topology-svg-wrap {
   flex: 1;
-  padding: 12px;
+  padding: 20px 24px;
   background: #FCFBF9;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -797,23 +797,17 @@ a { text-decoration: none; color: inherit; }
   border-radius: 4px;
 }
 
-/* On desktop, SVG is fluid responsive. On mobile, preserve minimum width so text is sharp */
+/* On desktop, SVG expands fluidly up to 1140px. On mobile, preserve minimum width so text is sharp */
 .topology-svg-wrap svg {
   display: block;
   margin: 0 auto;
-}
-@media (min-width: 641px) {
-  .topology-svg-wrap svg {
-    width: 100%;
-    height: auto;
-  }
-  .mobile-pan-hint {
-    display: none;
-  }
+  width: 100%;
+  max-width: 1140px;
+  height: auto;
 }
 @media (max-width: 640px) {
   .topology-svg-wrap svg {
-    min-width: 580px;
+    min-width: 680px;
     height: auto;
   }
   .mobile-pan-hint {
@@ -826,31 +820,21 @@ a { text-decoration: none; color: inherit; }
     border-bottom: 1px solid var(--border-light);
   }
 }
+@media (min-width: 641px) {
+  .mobile-pan-hint {
+    display: none;
+  }
+}
 
-.topology-explainer {
-  padding: 14px 20px;
+.topology-legend-bar {
+  padding: 10px 20px;
   border-top: 1px solid var(--border-light);
-  background: #FFFFFF;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.explainer-status {
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--text-main);
   background: #FDFBF9;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
-}
-.explainer-status strong {
-  color: var(--text-main);
-}
-.topology-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 22px;
   font-size: 11.5px;
   color: var(--text-secondary);
 }
@@ -861,8 +845,8 @@ a { text-decoration: none; color: inherit; }
   white-space: nowrap;
 }
 .legend-dot {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
@@ -1411,3 +1395,417 @@ textarea.form-input {
 .toast.error   { background: var(--accent-coral); }
 @keyframes toastIn  { to { opacity: 1; transform: translateY(0); } }
 @keyframes toastOut { to { opacity: 0; transform: translateY(8px); } }
+
+/* ============================================================
+   LIVE KERNEL ARP TABLES & VIEW SWITCHER (TOPOLOGY CARD)
+   ============================================================ */
+.sim-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 20px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.sim-view-switcher .view-btn {
+  background: transparent;
+  border: none;
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sim-view-switcher .view-btn:hover {
+  color: #0F172A;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.sim-view-switcher .view-btn.active {
+  background: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
+}
+
+.topology-arp-tables-section {
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+}
+
+/* Ground Truth Hardware Reference Grid (Roomy 3 Cards) */
+.arp-hardware-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 18px 4px 18px;
+  background: #FAFAFA;
+  border-bottom: 1px solid var(--border-light);
+}
+
+@media (max-width: 860px) {
+  .arp-hardware-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.hw-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.hw-card.hw-gw {
+  border-left: 3.5px solid #2A8C76;
+}
+
+.hw-card.hw-victim {
+  border-left: 3.5px solid #2563EB;
+}
+
+.hw-card.hw-attacker {
+  border-left: 3.5px solid #E06C62;
+}
+
+.hw-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hw-icon {
+  font-size: 13px;
+}
+
+.hw-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.hw-mac-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.hw-label {
+  font-size: 10px;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.hw-mac {
+  font-size: 11px;
+  background: #F8FAFC;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #E2E8F0;
+}
+
+.text-red { color: #DC2626 !important; }
+.text-teal { color: #1B6554 !important; }
+.text-blue { color: #1D4ED8 !important; }
+.font-bold { font-weight: 700; }
+
+/* Side-by-Side 2-Column Live ARP Tables */
+.arp-side-by-side-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 18px;
+  background: #FFFFFF;
+}
+
+@media (max-width: 900px) {
+  .arp-side-by-side-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+
+.arp-table-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s ease;
+}
+
+.arp-table-card.card-poisoned {
+  border-color: #FCA5A5;
+  box-shadow: 0 0 0 1.5px #EF4444, 0 2px 8px rgba(239, 68, 68, 0.08);
+}
+
+.arp-table-card.card-mitigated {
+  border-color: #93C5FD;
+  box-shadow: 0 0 0 1.5px #3B82F6, 0 2px 8px rgba(59, 130, 246, 0.08);
+}
+
+.arp-table-card-header {
+  padding: 9px 14px;
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-poisoned .arp-table-card-header {
+  background: #FEF2F2;
+  border-bottom-color: #FEE2E2;
+}
+
+.card-mitigated .arp-table-card-header {
+  background: #EFF6FF;
+  border-bottom-color: #DBEAFE;
+}
+
+.table-header-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.arp-table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+/* Spacious 2-Column ARP Table */
+.arp-data-table.spacious-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: left;
+}
+
+.arp-data-table.spacious-table th {
+  background: #F8FAFC;
+  color: #64748B;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.arp-data-table.spacious-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.arp-data-table.spacious-table tr:last-child td {
+  border-bottom: none;
+}
+
+.arp-data-table tr.row-poisoned {
+  background: #FEF2F2;
+  animation: arpRowPulse 2.5s infinite;
+}
+
+.arp-data-table tr.row-changed-flash {
+  animation: arpChangedFlash 1.5s ease-out;
+}
+
+@keyframes arpChangedFlash {
+  0%   { background-color: #FEF08A; }
+  100% { background-color: transparent; }
+}
+
+@keyframes arpRowPulse {
+  0%, 100% { background-color: #FEF2F2; }
+  50%      { background-color: #FEE2E2; }
+}
+
+.badge-pulse {
+  animation: badgeGlow 1.5s infinite;
+}
+
+@keyframes badgeGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50%      { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2); }
+}
+
+/* Cell Layouts */
+.ip-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ip-top-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ip-address {
+  font-weight: 700;
+  font-size: 11.5px;
+  color: var(--text-main);
+}
+
+.ip-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.type-pill {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.pill-dynamic {
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.pill-static {
+  background: #DBEAFE;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+}
+
+.binding-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.binding-primary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mac-code {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.01em;
+}
+
+.mac-poison-pill {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.25);
+}
+
+.mac-authentic {
+  background: #E8F5F1;
+  color: #1B6554;
+  border: 1px solid #B8E2D7;
+}
+
+.mac-static {
+  background: #DBEAFE;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.binding-diff-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+
+.diff-expected {
+  color: #64748B;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.diff-route {
+  font-weight: 600;
+}
+
+.text-danger {
+  color: #DC2626;
+  font-weight: 700;
+}
+
+.text-safe {
+  color: #166534;
+}
+
+/* Dynamic Layer 2 Status & Impact Strip */
+.arp-status-banner {
+  margin: 0 18px 14px 18px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  transition: all 0.25s ease;
+}
+
+.arp-status-banner.state-healthy {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #14532D;
+}
+
+.arp-status-banner.state-poisoned {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #7F1D1D;
+}
+
+.arp-status-banner.state-mitigated {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1E3A8A;
+}
+
+.status-banner-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.status-banner-text {
+  flex: 1;
+}
+

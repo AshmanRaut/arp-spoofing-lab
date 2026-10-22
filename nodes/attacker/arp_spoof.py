@@ -90,15 +90,27 @@ def send_forged_reply(target_ip, target_mac, spoof_ip, iface=IFACE):
 
 
 def send_real_reply(target_ip, target_mac, real_ip, real_mac, iface=IFACE):
-    """Restore target_ip's table with the correct real mapping."""
-    pkt = Ether(dst=target_mac, src=real_mac) / ARP(
+    """Restore target_ip's table with the correct real mapping.
+    Sends both an ARP Reply (op=2) and an ARP Request (op=1).
+    Per RFC 826 and Linux kernel arp.c, passive hosts (like the default gateway)
+    drop unsolicited ARP replies unless actively soliciting, but always update
+    their cache on incoming ARP requests announcing the sender's real IP and MAC.
+    """
+    pkt_reply = Ether(dst=target_mac, src=real_mac) / ARP(
         op=2,
         pdst=target_ip,
         hwdst=target_mac,
         psrc=real_ip,
         hwsrc=real_mac,
     )
-    sendp(pkt, iface=iface, count=3, verbose=0)
+    pkt_req = Ether(dst="ff:ff:ff:ff:ff:ff", src=real_mac) / ARP(
+        op=1,
+        pdst=target_ip,
+        hwdst="00:00:00:00:00:00",
+        psrc=real_ip,
+        hwsrc=real_mac,
+    )
+    sendp([pkt_reply, pkt_req], iface=iface, count=3, verbose=0)
 
 
 def set_ip_forward(enabled: bool):

@@ -43,6 +43,7 @@ const state = {
   feedbackSubmitted: false,
   controlsOpen: true,
   logOpen:      true,
+  simViewMode:  'both',         // 'both' | 'map' | 'tables'
 };
 
 /* ─── Tabs & module icons ───────────────────────────────────── */
@@ -436,6 +437,41 @@ function setSvgContent(svg, markup) {
   layer.innerHTML = markup;
 }
 
+/* ─── Simulation View Mode Controller (Map / Tables / Both) ───────── */
+function applySimViewMode() {
+  const mode = state.simViewMode || 'both';
+  const svgWrap = $('#topology-svg-wrap') || $('.topology-svg-wrap');
+  const legendBar = $('#topology-legend-bar');
+  const panHint = $('.mobile-pan-hint');
+  const tablesSec = $('#topology-arp-tables-section');
+  if (!svgWrap || !tablesSec) return;
+
+  if (mode === 'map') {
+    svgWrap.style.display = 'block';
+    if (legendBar) legendBar.style.display = 'flex';
+    if (panHint) panHint.style.display = '';
+    tablesSec.style.display = 'none';
+  } else if (mode === 'tables') {
+    svgWrap.style.display = 'none';
+    if (legendBar) legendBar.style.display = 'none';
+    if (panHint) panHint.style.display = 'none';
+    tablesSec.style.display = 'flex';
+  } else {
+    svgWrap.style.display = 'block';
+    if (legendBar) legendBar.style.display = 'flex';
+    if (panHint) panHint.style.display = '';
+    tablesSec.style.display = 'flex';
+  }
+
+  // Update switcher button active states
+  const switcher = $('#sim-view-switcher');
+  if (switcher) {
+    $$('.view-btn', switcher).forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === mode);
+    });
+  }
+}
+
 /* SVG topology diagram with animated packet flows and dynamic attack mechanics */
 function renderDiagram() {
   const svg = $('#topology-svg');
@@ -471,28 +507,28 @@ function renderDiagram() {
   // Node styles
   const vBorder = isMitigated ? '#2563EB' : (isVictimPoisoned ? '#E06C62' : '#2A8C76');
   const vBg = isMitigated ? '#EFF6FF' : (isVictimPoisoned ? '#FEF2F2' : '#F4FAF8');
-  const vBadgeText = isMitigated ? '🛡️ Protected (Static)' : (isVictimPoisoned ? '⚠️ POISONED!' : '✓ Authentic Gateway');
+  const vBadgeText = isMitigated ? '🛡️ STATIC' : (isVictimPoisoned ? '⚠️ POISONED' : '✓ AUTHENTIC');
   const vBadgeBg = isMitigated ? '#DBEAFE' : (isVictimPoisoned ? '#FEE2E2' : '#E8F5F1');
   const vBadgeColor = isMitigated ? '#1D4ED8' : (isVictimPoisoned ? '#B91C1C' : '#1B6554');
   const vClass = isVictimPoisoned && !isMitigated ? 'node-poison-pulse' : (isMitigated ? 'node-shield-pulse' : '');
 
   const gBorder = isMitigated ? '#2563EB' : (isGwPoisoned ? '#E06C62' : '#2A8C76');
   const gBg = isMitigated ? '#EFF6FF' : (isGwPoisoned ? '#FEF2F2' : '#F4FAF8');
-  const gBadgeText = isMitigated ? '🛡️ Protected (Static)' : (isGwPoisoned ? '⚠️ POISONED!' : '✓ Authentic Victim');
+  const gBadgeText = isMitigated ? '🛡️ STATIC' : (isGwPoisoned ? '⚠️ POISONED' : '✓ AUTHENTIC');
   const gBadgeBg = isMitigated ? '#DBEAFE' : (isGwPoisoned ? '#FEE2E2' : '#E8F5F1');
   const gBadgeColor = isMitigated ? '#1D4ED8' : (isGwPoisoned ? '#B91C1C' : '#1B6554');
   const gClass = isGwPoisoned && !isMitigated ? 'node-poison-pulse' : (isMitigated ? 'node-shield-pulse' : '');
 
   const aBorder = isAttacking ? '#E06C62' : '#64748B';
   const aBg = isAttacking ? '#FEF2F2' : '#F8FAFC';
-  const aBadgeText = !isAttacking ? '💤 Standby / Idle' : (isMitm ? '⚡ MITM: Relaying (ip_forward=1)' : '🚫 DoS: Dropping (ip_forward=0)');
+  const aBadgeText = !isAttacking ? '💤 Standby / Idle' : (isMitm ? '⚡ MITM Relaying (ip_forward=1)' : '🚫 DoS Dropping (ip_forward=0)');
   const aBadgeBg = !isAttacking ? '#F1F5F9' : (isMitm ? '#FEF3C7' : '#FEE2E2');
   const aBadgeColor = !isAttacking ? '#475569' : (isMitm ? '#B45309' : '#B91C1C');
   const aClass = isAttacking ? 'node-poison-pulse' : '';
 
   let markup = `
     <!-- Background Grid -->
-    <rect width="680" height="430" rx="14" fill="#FDFBF9" />
+    <rect width="1140" height="560" rx="14" fill="#FDFBF9" />
 
     <!-- ── Direct Communication Channel (Victim ↔ Gateway) ── -->
   `;
@@ -500,46 +536,46 @@ function renderDiagram() {
   if (!isVictimPoisoned && !isGwPoisoned) {
     markup += `
       <g>
-        <line x1="215" y1="112" x2="465" y2="112" stroke="#2A8C76" stroke-width="3" />
-        <circle r="5" fill="#10B981" filter="url(#packetGlow)">
-          <animateMotion path="M 215 106 L 465 106" dur="2s" repeatCount="indefinite" />
+        <line x1="375" y1="92" x2="765" y2="92" stroke="#2A8C76" stroke-width="3" />
+        <circle r="6" fill="#10B981" filter="url(#packetGlow)">
+          <animateMotion path="M 375 87 L 765 87" dur="2s" repeatCount="indefinite" />
         </circle>
-        <circle r="5" fill="#06B6D4" filter="url(#packetGlow)">
-          <animateMotion path="M 465 118 L 215 118" dur="2s" begin="1s" repeatCount="indefinite" />
+        <circle r="6" fill="#06B6D4" filter="url(#packetGlow)">
+          <animateMotion path="M 765 97 L 375 97" dur="2s" begin="1s" repeatCount="indefinite" />
         </circle>
-        <rect x="250" y="99" width="180" height="26" rx="13" fill="#FFFFFF" stroke="#2A8C76" stroke-width="1.5" />
-        <text x="340" y="116" text-anchor="middle" font-size="10" font-weight="700" fill="#1B6554" font-family="'Noto Sans', sans-serif">Direct IP/ICMP Traffic</text>
+        <rect x="445" y="76" width="250" height="32" rx="16" fill="#FFFFFF" stroke="#2A8C76" stroke-width="1.4" />
+        <text x="570" y="96.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1B6554" font-family="'Noto Sans', sans-serif">Direct IP/ICMP Traffic</text>
       </g>
     `;
   } else {
     if (isMitigated) {
       markup += `
         <g>
-          <line x1="215" y1="112" x2="465" y2="112" stroke="#2563EB" stroke-width="3" />
-          <circle r="5" fill="#3B82F6" filter="url(#packetGlow)">
-            <animateMotion path="M 215 106 L 465 106" dur="2s" repeatCount="indefinite" />
+          <line x1="375" y1="92" x2="765" y2="92" stroke="#2563EB" stroke-width="3" />
+          <circle r="6" fill="#3B82F6" filter="url(#packetGlow)">
+            <animateMotion path="M 375 87 L 765 87" dur="2s" repeatCount="indefinite" />
           </circle>
-          <circle r="5" fill="#60A5FA" filter="url(#packetGlow)">
-            <animateMotion path="M 465 118 L 215 118" dur="2s" begin="1s" repeatCount="indefinite" />
+          <circle r="6" fill="#60A5FA" filter="url(#packetGlow)">
+            <animateMotion path="M 765 97 L 375 97" dur="2s" begin="1s" repeatCount="indefinite" />
           </circle>
-          <rect x="245" y="99" width="190" height="26" rx="13" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.5" />
-          <text x="340" y="116" text-anchor="middle" font-size="10" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">🛡️ Protected Direct Traffic</text>
+          <rect x="430" y="76" width="280" height="32" rx="16" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.4" />
+          <text x="570" y="96.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">🛡️ Protected Direct Traffic</text>
         </g>
       `;
     } else if (isMitm) {
       markup += `
         <g>
-          <line x1="215" y1="112" x2="465" y2="112" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="5 5" />
-          <rect x="230" y="99" width="220" height="26" rx="13" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1.5" />
-          <text x="340" y="116" text-anchor="middle" font-size="9.5" font-weight="700" fill="#B45309" font-family="'Noto Sans', sans-serif">Direct Path Severed (Traffic Diverted)</text>
+          <line x1="375" y1="92" x2="765" y2="92" stroke="#CBD5E1" stroke-width="2.5" stroke-dasharray="6 6" />
+          <rect x="420" y="76" width="300" height="32" rx="16" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1.4" />
+          <text x="570" y="96.5" text-anchor="middle" font-size="11" font-weight="700" fill="#B45309" font-family="'Noto Sans', sans-serif">Direct Path Severed (Traffic Diverted)</text>
         </g>
       `;
     } else {
       markup += `
         <g>
-          <line x1="215" y1="112" x2="465" y2="112" stroke="#FCA5A5" stroke-width="2" stroke-dasharray="5 5" />
-          <rect x="230" y="99" width="220" height="26" rx="13" fill="#FEF2F2" stroke="#EF4444" stroke-width="1.5" />
-          <text x="340" y="116" text-anchor="middle" font-size="9.5" font-weight="700" fill="#B91C1C" font-family="'Noto Sans', sans-serif">❌ Connection Timed Out (Blackholed)</text>
+          <line x1="375" y1="92" x2="765" y2="92" stroke="#FCA5A5" stroke-width="2.5" stroke-dasharray="6 6" />
+          <rect x="420" y="76" width="300" height="32" rx="16" fill="#FEF2F2" stroke="#EF4444" stroke-width="1.4" />
+          <text x="570" y="96.5" text-anchor="middle" font-size="11" font-weight="700" fill="#B91C1C" font-family="'Noto Sans', sans-serif">❌ Connection Timed Out (Blackholed)</text>
         </g>
       `;
     }
@@ -551,45 +587,45 @@ function renderDiagram() {
       markup += `
         <!-- Left Poisoning Curve (Attacker -> Victim) -->
         <g>
-          <path d="M 280 260 Q 200 220 165 180" fill="none" stroke="#E06C62" stroke-width="2.5" stroke-dasharray="6 5" class="flow-dash-fast" marker-end="url(#coral-arrow)" />
-          <circle r="5" fill="#EF4444" filter="url(#packetGlow)">
-            <animateMotion path="M 280 260 Q 200 220 165 180" dur="1.2s" repeatCount="indefinite" />
+          <path d="M 440 360 Q 315 315 260 220" fill="none" stroke="#E06C62" stroke-width="3" stroke-dasharray="7 5" class="flow-dash-fast" marker-end="url(#coral-arrow)" />
+          <circle r="6" fill="#EF4444" filter="url(#packetGlow)">
+            <animateMotion path="M 440 360 Q 315 315 260 220" dur="1.2s" repeatCount="indefinite" />
           </circle>
-          <rect x="120" y="198" width="168" height="20" rx="10" fill="#FEF2F2" stroke="#E06C62" stroke-width="1" />
-          <text x="204" y="212" text-anchor="middle" font-size="8" font-weight="700" fill="#B91C1C" font-family="'JetBrains Mono', monospace">⚡ Forged ARP: 10.10.10.1=Attacker</text>
+          <rect x="185" y="275" width="200" height="28" rx="14" fill="#FEF2F2" stroke="#E06C62" stroke-width="1.2" />
+          <text x="285" y="293" text-anchor="middle" font-size="10" font-weight="700" fill="#B91C1C" font-family="'JetBrains Mono', monospace">⚡ Forged: 10.10.10.1=Attacker</text>
         </g>
 
         <!-- Right Poisoning Curve (Attacker -> Gateway) -->
         <g>
-          <path d="M 400 260 Q 480 220 515 180" fill="none" stroke="#E06C62" stroke-width="2.5" stroke-dasharray="6 5" class="flow-dash-fast" marker-end="url(#coral-arrow)" />
-          <circle r="5" fill="#EF4444" filter="url(#packetGlow)">
-            <animateMotion path="M 400 260 Q 480 220 515 180" dur="1.2s" repeatCount="indefinite" />
+          <path d="M 700 360 Q 825 315 880 220" fill="none" stroke="#E06C62" stroke-width="3" stroke-dasharray="7 5" class="flow-dash-fast" marker-end="url(#coral-arrow)" />
+          <circle r="6" fill="#EF4444" filter="url(#packetGlow)">
+            <animateMotion path="M 700 360 Q 825 315 880 220" dur="1.2s" repeatCount="indefinite" />
           </circle>
-          <rect x="392" y="198" width="168" height="20" rx="10" fill="#FEF2F2" stroke="#E06C62" stroke-width="1" />
-          <text x="476" y="212" text-anchor="middle" font-size="8" font-weight="700" fill="#B91C1C" font-family="'JetBrains Mono', monospace">⚡ Forged ARP: 10.10.10.10=Attacker</text>
+          <rect x="755" y="275" width="200" height="28" rx="14" fill="#FEF2F2" stroke="#E06C62" stroke-width="1.2" />
+          <text x="855" y="293" text-anchor="middle" font-size="10" font-weight="700" fill="#B91C1C" font-family="'JetBrains Mono', monospace">⚡ Forged: 10.10.10.10=Attacker</text>
         </g>
       `;
     } else {
       markup += `
         <!-- Left Poisoning Curve Deflected -->
         <g>
-          <path d="M 280 260 Q 200 220 175 195" fill="none" stroke="#E06C62" stroke-width="1.8" stroke-dasharray="4 4" opacity="0.5" />
-          <g transform="translate(145, 182)">
-            <circle cx="12" cy="12" r="14" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" class="node-shield-pulse" />
-            <text x="12" y="17" text-anchor="middle" font-size="12">🛡️</text>
-            <rect x="-35" y="28" width="94" height="18" rx="9" fill="#EFF6FF" stroke="#2563EB" stroke-width="0.8" />
-            <text x="12" y="40" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">Static ARP Blocked</text>
+          <path d="M 440 360 Q 315 315 265 230" fill="none" stroke="#E06C62" stroke-width="2" stroke-dasharray="4 4" opacity="0.45" />
+          <g transform="translate(245, 195)">
+            <circle cx="16" cy="16" r="17" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" class="node-shield-pulse" />
+            <text x="16" y="22" text-anchor="middle" font-size="15">🛡️</text>
+            <rect x="-42" y="34" width="116" height="22" rx="11" fill="#EFF6FF" stroke="#2563EB" stroke-width="1" />
+            <text x="16" y="49" text-anchor="middle" font-size="9" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">Static Blocked</text>
           </g>
         </g>
 
         <!-- Right Poisoning Curve Deflected -->
         <g>
-          <path d="M 400 260 Q 480 220 505 195" fill="none" stroke="#E06C62" stroke-width="1.8" stroke-dasharray="4 4" opacity="0.5" />
-          <g transform="translate(515, 182)">
-            <circle cx="12" cy="12" r="14" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" class="node-shield-pulse" />
-            <text x="12" y="17" text-anchor="middle" font-size="12">🛡️</text>
-            <rect x="-35" y="28" width="94" height="18" rx="9" fill="#EFF6FF" stroke="#2563EB" stroke-width="0.8" />
-            <text x="12" y="40" text-anchor="middle" font-size="7.5" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">Static ARP Blocked</text>
+          <path d="M 700 360 Q 825 315 875 230" fill="none" stroke="#E06C62" stroke-width="2" stroke-dasharray="4 4" opacity="0.45" />
+          <g transform="translate(865, 195)">
+            <circle cx="16" cy="16" r="17" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" class="node-shield-pulse" />
+            <text x="16" y="22" text-anchor="middle" font-size="15">🛡️</text>
+            <rect x="-42" y="34" width="116" height="22" rx="11" fill="#EFF6FF" stroke="#2563EB" stroke-width="1" />
+            <text x="16" y="49" text-anchor="middle" font-size="9" font-weight="700" fill="#1D4ED8" font-family="'Noto Sans', sans-serif">Static Blocked</text>
           </g>
         </g>
       `;
@@ -601,12 +637,12 @@ function renderDiagram() {
     markup += `
       <!-- Intercepted Frame: Victim -> Attacker -->
       <g>
-        <path d="M 100 180 Q 95 280 230 320" fill="none" stroke="#F59E0B" stroke-width="2.8" stroke-dasharray="7 5" class="flow-dash" marker-end="url(#amber-arrow)" />
-        <circle r="5.5" fill="#F59E0B" filter="url(#packetGlow)">
-          <animateMotion path="M 100 180 Q 95 280 230 320" dur="1.5s" repeatCount="indefinite" />
+        <path d="M 95 220 Q 85 440 395 435" fill="none" stroke="#F59E0B" stroke-width="3.2" stroke-dasharray="7 5" class="flow-dash" marker-end="url(#amber-arrow)" />
+        <circle r="6" fill="#F59E0B" filter="url(#packetGlow)">
+          <animateMotion path="M 95 220 Q 85 440 395 435" dur="1.5s" repeatCount="indefinite" />
         </circle>
-        <rect x="25" y="248" width="185" height="20" rx="10" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1" />
-        <text x="117" y="262" text-anchor="middle" font-size="8" font-weight="700" fill="#92400E" font-family="'Noto Sans', sans-serif">① Intercepted Frame (Dst MAC=Attacker)</text>
+        <rect x="42" y="345" width="175" height="28" rx="14" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.2" />
+        <text x="129.5" y="363" text-anchor="middle" font-size="10.5" font-weight="700" fill="#92400E" font-family="'Noto Sans', sans-serif">① Intercepted Frame</text>
       </g>
     `;
 
@@ -614,87 +650,88 @@ function renderDiagram() {
       markup += `
         <!-- Relayed Frame: Attacker -> Gateway -->
         <g>
-          <path d="M 450 320 Q 585 280 580 180" fill="none" stroke="#8B5CF6" stroke-width="2.8" stroke-dasharray="7 5" class="flow-dash" marker-end="url(#purple-arrow)" />
-          <circle r="5.5" fill="#8B5CF6" filter="url(#packetGlow)">
-            <animateMotion path="M 450 320 Q 585 280 580 180" dur="1.5s" begin="0.3s" repeatCount="indefinite" />
+          <path d="M 745 435 Q 1055 440 1045 220" fill="none" stroke="#8B5CF6" stroke-width="3.2" stroke-dasharray="7 5" class="flow-dash" marker-end="url(#purple-arrow)" />
+          <circle r="6" fill="#8B5CF6" filter="url(#packetGlow)">
+            <animateMotion path="M 745 435 Q 1055 440 1045 220" dur="1.5s" begin="0.3s" repeatCount="indefinite" />
           </circle>
-          <rect x="470" y="248" width="185" height="20" rx="10" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1" />
-          <text x="562" y="262" text-anchor="middle" font-size="8" font-weight="700" fill="#5B21B6" font-family="'Noto Sans', sans-serif">② Relayed to Gateway (ip_forward=1)</text>
+          <rect x="923" y="345" width="175" height="28" rx="14" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1.2" />
+          <text x="1010.5" y="363" text-anchor="middle" font-size="10.5" font-weight="700" fill="#5B21B6" font-family="'Noto Sans', sans-serif">② Relayed to Gateway</text>
         </g>
       `;
     } else if (isDos) {
       markup += `
         <!-- Blackhole Drop Zone at Attacker -->
-        <g transform="translate(230, 292)">
-          <circle cx="14" cy="14" r="14" fill="#FEE2E2" stroke="#EF4444" stroke-width="2" class="node-poison-pulse" />
-          <text x="14" y="19" text-anchor="middle" font-size="14" font-weight="900" fill="#DC2626">✕</text>
-          <rect x="34" y="4" width="165" height="20" rx="10" fill="#FEF2F2" stroke="#EF4444" stroke-width="1" />
-          <text x="116" y="18" text-anchor="middle" font-size="8" font-weight="700" fill="#B91C1C" font-family="'Noto Sans', sans-serif">② BLACKHOLE: Packets Dropped (ip_forward=0)</text>
+        <g transform="translate(395, 526)">
+          <rect x="0" y="0" width="350" height="26" rx="13" fill="#FEE2E2" stroke="#EF4444" stroke-width="1.2" class="node-poison-pulse" />
+          <text x="175" y="17" text-anchor="middle" font-size="10" font-weight="800" fill="#DC2626" font-family="'Noto Sans', sans-serif">✕ BLACKHOLE: Frames Dropped (ip_forward=0)</text>
         </g>
       `;
     }
   }
 
-  // ── Node Cards ──
+  // ── Node Cards with In-Map Integrated ARP Caches ──
   markup += `
     <!-- ── VICTIM NODE ── -->
     <g>
-      <rect x="35" y="45" width="180" height="135" rx="12" fill="${vBg}" stroke="${vBorder}" stroke-width="2" class="${vClass}" />
-      <g transform="translate(48, 56)">
-        <rect x="0" y="0" width="28" height="28" rx="6" fill="#FFFFFF" stroke="${vBorder}" stroke-width="1.2" />
-        <text x="14" y="19" text-anchor="middle" font-size="14">💻</text>
-        <text x="36" y="14" font-size="13" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Victim Target</text>
-        <text x="36" y="26" font-size="9" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.10</text>
+      <rect x="45" y="30" width="330" height="190" rx="14" fill="${vBg}" stroke="${vBorder}" stroke-width="2" class="${vClass}" />
+      <g transform="translate(62, 44)">
+        <rect x="0" y="0" width="36" height="36" rx="8" fill="#FFFFFF" stroke="${vBorder}" stroke-width="1.2" />
+        <text x="18" y="24" text-anchor="middle" font-size="18">💻</text>
+        <text x="48" y="16" font-size="15.5" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Victim Target</text>
+        <text x="48" y="32" font-size="11" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.10</text>
       </g>
-      <text x="48" y="99" font-size="8.5" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="600" fill="#111827">${state.realMacs.victim || 'detecting...'}</tspan></text>
-      <line x1="48" y1="106" x2="202" y2="106" stroke="${vBorder}" stroke-width="0.8" opacity="0.4" />
-      <text x="48" y="121" font-size="8" font-weight="700" fill="#6B7280" font-family="'Noto Sans', sans-serif">KERNEL ARP TABLE (10.10.10.1):</text>
-      <text x="48" y="136" font-size="9" font-family="'JetBrains Mono', monospace" font-weight="700" fill="${isVictimPoisoned && !isMitigated ? '#DC2626' : '#111827'}">${victimGwMac || 'No ARP entry'}</text>
-      <rect x="48" y="146" width="154" height="22" rx="11" fill="${vBadgeBg}" stroke="${vBadgeColor}" stroke-width="0.8" />
-      <text x="125" y="161" text-anchor="middle" font-size="8.5" font-weight="700" fill="${vBadgeColor}" font-family="'Noto Sans', sans-serif">${vBadgeText}</text>
+      <text x="62" y="100" font-size="11" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="700" fill="#111827">${state.realMacs.victim || 'detecting...'}</tspan></text>
+      <line x1="62" y1="110" x2="358" y2="110" stroke="${vBorder}" stroke-width="0.8" opacity="0.3" />
+      
+      <!-- In-Map Live ARP Entry Box (Roomy & Stacked Vertically) -->
+      <rect x="60" y="120" width="300" height="84" rx="10" fill="${vBadgeBg}" stroke="${vBadgeColor}" stroke-width="1" />
+      <text x="74" y="138" font-size="10" font-weight="700" fill="${vBadgeColor}" font-family="'Noto Sans', sans-serif">KERNEL ARP (10.10.10.1 Gateway):</text>
+      <text x="74" y="161" font-size="14" font-family="'JetBrains Mono', monospace" font-weight="700" fill="${isVictimPoisoned && !isMitigated ? '#DC2626' : '#111827'}">${victimGwMac || 'No ARP entry'}</text>
+      <rect x="74" y="171" width="126" height="23" rx="11.5" fill="#FFFFFF" stroke="${vBadgeColor}" stroke-width="0.9" />
+      <text x="137" y="186.5" text-anchor="middle" font-size="10" font-weight="700" fill="${vBadgeColor}" font-family="'Noto Sans', sans-serif">${vBadgeText}</text>
     </g>
 
     <!-- ── GATEWAY NODE ── -->
     <g>
-      <rect x="465" y="45" width="180" height="135" rx="12" fill="${gBg}" stroke="${gBorder}" stroke-width="2" class="${gClass}" />
-      <g transform="translate(478, 56)">
-        <rect x="0" y="0" width="28" height="28" rx="6" fill="#FFFFFF" stroke="${gBorder}" stroke-width="1.2" />
-        <text x="14" y="19" text-anchor="middle" font-size="14">🌐</text>
-        <text x="36" y="14" font-size="13" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Default Gateway</text>
-        <text x="36" y="26" font-size="9" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.1</text>
+      <rect x="765" y="30" width="330" height="190" rx="14" fill="${gBg}" stroke="${gBorder}" stroke-width="2" class="${gClass}" />
+      <g transform="translate(782, 44)">
+        <rect x="0" y="0" width="36" height="36" rx="8" fill="#FFFFFF" stroke="${gBorder}" stroke-width="1.2" />
+        <text x="18" y="24" text-anchor="middle" font-size="18">🌐</text>
+        <text x="48" y="16" font-size="15.5" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Default Gateway</text>
+        <text x="48" y="32" font-size="11" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.1</text>
       </g>
-      <text x="478" y="99" font-size="8.5" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="600" fill="#111827">${state.realMacs.gateway || 'detecting...'}</tspan></text>
-      <line x1="478" y1="106" x2="632" y2="106" stroke="${gBorder}" stroke-width="0.8" opacity="0.4" />
-      <text x="478" y="121" font-size="8" font-weight="700" fill="#6B7280" font-family="'Noto Sans', sans-serif">KERNEL ARP TABLE (10.10.10.10):</text>
-      <text x="478" y="136" font-size="9" font-family="'JetBrains Mono', monospace" font-weight="700" fill="${isGwPoisoned && !isMitigated ? '#DC2626' : '#111827'}">${gwVictimMac || 'No ARP entry'}</text>
-      <rect x="478" y="146" width="154" height="22" rx="11" fill="${gBadgeBg}" stroke="${gBadgeColor}" stroke-width="0.8" />
-      <text x="555" y="161" text-anchor="middle" font-size="8.5" font-weight="700" fill="${gBadgeColor}" font-family="'Noto Sans', sans-serif">${gBadgeText}</text>
+      <text x="782" y="100" font-size="11" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="700" fill="#111827">${state.realMacs.gateway || 'detecting...'}</tspan></text>
+      <line x1="782" y1="110" x2="1078" y2="110" stroke="${gBorder}" stroke-width="0.8" opacity="0.3" />
+
+      <!-- In-Map Live ARP Entry Box (Roomy & Stacked Vertically) -->
+      <rect x="780" y="120" width="300" height="84" rx="10" fill="${gBadgeBg}" stroke="${gBadgeColor}" stroke-width="1" />
+      <text x="794" y="138" font-size="10" font-weight="700" fill="${gBadgeColor}" font-family="'Noto Sans', sans-serif">KERNEL ARP (10.10.10.10 Victim):</text>
+      <text x="794" y="161" font-size="14" font-family="'JetBrains Mono', monospace" font-weight="700" fill="${isGwPoisoned && !isMitigated ? '#DC2626' : '#111827'}">${gwVictimMac || 'No ARP entry'}</text>
+      <rect x="794" y="171" width="126" height="23" rx="11.5" fill="#FFFFFF" stroke="${gBadgeColor}" stroke-width="0.9" />
+      <text x="857" y="186.5" text-anchor="middle" font-size="10" font-weight="700" fill="${gBadgeColor}" font-family="'Noto Sans', sans-serif">${gBadgeText}</text>
     </g>
 
     <!-- ── ATTACKER NODE ── -->
     <g>
-      <rect x="230" y="260" width="220" height="135" rx="12" fill="${aBg}" stroke="${aBorder}" stroke-width="2" class="${aClass}" />
-      <g transform="translate(243, 271)">
-        <rect x="0" y="0" width="28" height="28" rx="6" fill="#FFFFFF" stroke="${aBorder}" stroke-width="1.2" />
-        <text x="14" y="19" text-anchor="middle" font-size="14">⚡</text>
-        <text x="36" y="14" font-size="13" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Attacker Machine</text>
-        <text x="36" y="26" font-size="9" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.66</text>
+      <rect x="395" y="360" width="350" height="160" rx="14" fill="${aBg}" stroke="${aBorder}" stroke-width="2" class="${aClass}" />
+      <g transform="translate(413, 374)">
+        <rect x="0" y="0" width="36" height="36" rx="8" fill="#FFFFFF" stroke="${aBorder}" stroke-width="1.2" />
+        <text x="18" y="24" text-anchor="middle" font-size="18">⚡</text>
+        <text x="48" y="16" font-size="15.5" font-weight="700" fill="#1F2937" font-family="'Noto Sans', sans-serif">Attacker Spoofer</text>
+        <text x="48" y="32" font-size="11" font-family="'JetBrains Mono', monospace" fill="#6B7280">IP: 10.10.10.66</text>
       </g>
-      <text x="243" y="314" font-size="8.5" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="600" fill="#111827">${state.realMacs.attacker || 'detecting...'}</tspan></text>
-      <line x1="243" y1="321" x2="437" y2="321" stroke="${aBorder}" stroke-width="0.8" opacity="0.4" />
-      <text x="243" y="337" font-size="8" font-weight="700" fill="#6B7280" font-family="'Noto Sans', sans-serif">SCAPY RAW SOCKET ENGINE (arp_spoof.py):</text>
-      <text x="243" y="351" font-size="8.5" font-family="'Noto Sans', sans-serif" fill="#4B5563">${!isAttacking ? 'Awaiting attack launch command...' : (isMitm ? 'Intercepting frames & relaying via kernel' : 'Blackholing frames (ip_forward=0)')}</text>
-      <rect x="243" y="361" width="194" height="22" rx="11" fill="${aBadgeBg}" stroke="${aBadgeColor}" stroke-width="0.8" />
-      <text x="340" y="376" text-anchor="middle" font-size="8.5" font-weight="700" fill="${aBadgeColor}" font-family="'Noto Sans', sans-serif">${aBadgeText}</text>
+      <text x="413" y="430" font-size="11" font-family="'JetBrains Mono', monospace" fill="#4B5563">NIC MAC: <tspan font-weight="700" fill="#DC2626">${state.realMacs.attacker || 'detecting...'}</tspan></text>
+      <!-- Engine Status Box -->
+      <rect x="411" y="442" width="318" height="62" rx="10" fill="${aBadgeBg}" stroke="${aBadgeColor}" stroke-width="1" />
+      <text x="425" y="462" font-size="10" font-weight="700" fill="${aBadgeColor}" font-family="'Noto Sans', sans-serif">RAW SOCKET ENGINE (arp_spoof.py):</text>
+      <text x="425" y="486" font-size="11" font-weight="700" fill="${aBadgeColor}" font-family="'Noto Sans', sans-serif">${aBadgeText}</text>
     </g>
   `;
 
   setSvgContent(svg, markup);
 
-  // Update topology card header badge & explainer text
+  // Update topology card header badge
   const badgeEl = $('#topology-attack-badge');
-  const explainerEl = $('#explainer-status-text');
-
   if (badgeEl) {
     if (isMitigated) {
       badgeEl.textContent = 'Protected (Static ARP)';
@@ -708,17 +745,293 @@ function renderDiagram() {
     }
   }
 
-  if (explainerEl) {
-    if (isMitigated) {
-      explainerEl.innerHTML = `<strong>Active Defense:</strong> Static ARP entries are pinned in kernel neighbor tables (<code>PERMANENT</code>). Unsolicited forged ARP replies sent by the attacker are silently ignored by both Victim and Gateway, maintaining authentic direct communication.`;
-    } else if (isAttacking && isMitm) {
-      explainerEl.innerHTML = `<strong>MITM Attack in Progress:</strong> The Attacker poisoned both victim and gateway ARP caches. When the Victim sends packets to 10.10.10.1, Layer 2 Ethernet frames are physically addressed to the Attacker's MAC. The Attacker's kernel forwards the frames (<code>net.ipv4.ip_forward = 1</code>) to the Gateway, allowing complete eavesdropping without dropping connections.`;
-    } else if (isAttacking && isDos) {
-      explainerEl.innerHTML = `<strong>Denial of Service in Progress:</strong> The Attacker poisoned the Victim's ARP cache. The Victim transmits frames to the Attacker's MAC, but with kernel forwarding disabled (<code>net.ipv4.ip_forward = 0</code>), the Attacker silently drops all packets. The Victim experiences 100% packet loss and complete network isolation.`;
-    } else {
-      explainerEl.innerHTML = `<strong>Authentic LAN State:</strong> Legitimate Layer 2 communication. The Victim and Gateway resolve IP-to-MAC addresses through genuine ARP exchanges, and data packets (ICMP ping and TCP probes) flow directly between them.`;
-    }
+  // Update Live Kernel ARP Tables simultaneously
+  renderArpTables();
+  applySimViewMode();
+}
+
+/* ─── Track previous ARP resolution state for live visual deltas ────────── */
+const prevArpState = {
+  victimGwMac: '',
+  gwVictimMac: '',
+  init: false
+};
+
+/* ─── Render Live Kernel ARP Tables & Resolution Diffs (Spacious Zero-Overlap Layout) ─── */
+function renderArpTables() {
+  const container = $('#topology-arp-tables-section');
+  if (!container) return;
+
+  const attackerMac = (state.realMacs.attacker || '').toLowerCase();
+  const gatewayRealMac = (state.realMacs.gateway || '').toLowerCase();
+  const victimRealMac = (state.realMacs.victim || '').toLowerCase();
+
+  const victimGwMac = (state.arpTables.victim?.['10.10.10.1'] || '').toLowerCase();
+  const victimAttackerMac = (state.arpTables.victim?.['10.10.10.66'] || '').toLowerCase();
+
+  const gwVictimMac = (state.arpTables.gateway?.['10.10.10.10'] || '').toLowerCase();
+  const gwAttackerMac = (state.arpTables.gateway?.['10.10.10.66'] || '').toLowerCase();
+
+  let isVictimPoisoned = false;
+  if (victimGwMac) {
+    if (attackerMac && victimGwMac === attackerMac) isVictimPoisoned = true;
+    else if (gatewayRealMac && victimGwMac !== gatewayRealMac) isVictimPoisoned = true;
   }
+
+  let isGwPoisoned = false;
+  if (gwVictimMac) {
+    if (attackerMac && gwVictimMac === attackerMac) isGwPoisoned = true;
+    else if (victimRealMac && gwVictimMac !== victimRealMac) isGwPoisoned = true;
+  }
+
+  const isAttacking = state.attackActive;
+  const isMitigated = state.mitigationOn;
+  const attackMode = state.attackMode || 'mitm';
+  const isMitm = attackMode === 'mitm';
+  const isDos = attackMode === 'dos';
+
+  // Detect change for live flash animation
+  let victimFlash = false;
+  let gwFlash = false;
+  if (prevArpState.init) {
+    if (prevArpState.victimGwMac && prevArpState.victimGwMac !== victimGwMac) {
+      victimFlash = true;
+    }
+    if (prevArpState.gwVictimMac && prevArpState.gwVictimMac !== gwVictimMac) {
+      gwFlash = true;
+    }
+  } else {
+    prevArpState.init = true;
+  }
+  prevArpState.victimGwMac = victimGwMac;
+  prevArpState.gwVictimMac = gwVictimMac;
+
+  let html = `
+    <!-- Ground Truth Hardware Reference Strip (3-Column Card Grid) -->
+    <div class="arp-hardware-grid">
+      <div class="hw-card hw-gw">
+        <div class="hw-header">
+          <span class="hw-icon">🌐</span>
+          <span class="hw-title">Default Gateway (10.10.10.1)</span>
+        </div>
+        <div class="hw-mac-row">
+          <span class="hw-label">Physical NIC:</span>
+          <code class="hw-mac font-mono text-teal">${gatewayRealMac || 'resolving...'}</code>
+        </div>
+      </div>
+
+      <div class="hw-card hw-victim">
+        <div class="hw-header">
+          <span class="hw-icon">💻</span>
+          <span class="hw-title">Victim Target (10.10.10.10)</span>
+        </div>
+        <div class="hw-mac-row">
+          <span class="hw-label">Physical NIC:</span>
+          <code class="hw-mac font-mono text-blue">${victimRealMac || 'resolving...'}</code>
+        </div>
+      </div>
+
+      <div class="hw-card hw-attacker">
+        <div class="hw-header">
+          <span class="hw-icon">⚡</span>
+          <span class="hw-title">Attacker Spoofer (10.10.10.66)</span>
+        </div>
+        <div class="hw-mac-row">
+          <span class="hw-label">Rogue NIC:</span>
+          <code class="hw-mac font-mono text-red font-bold">${attackerMac || 'resolving...'}</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side-by-Side Live ARP Tables (Spacious 2-Column Design) -->
+    <div class="arp-side-by-side-grid">
+
+      <!-- ── VICTIM ARP TABLE ── -->
+      <div class="arp-table-card ${isVictimPoisoned && !isMitigated ? 'card-poisoned' : (isMitigated ? 'card-mitigated' : '')}">
+        <div class="arp-table-card-header">
+          <span class="table-header-title">
+            <span>💻</span> Victim Host ARP Cache (10.10.10.10)
+          </span>
+          <span class="badge-tag ${isMitigated ? 'tag-blue' : (isVictimPoisoned ? 'tag-red badge-pulse' : 'tag-teal')}">
+            ${isMitigated ? '🛡️ Protected (Static)' : (isVictimPoisoned ? '⚠️ POISONED!' : '✓ Authentic Gateway')}
+          </span>
+        </div>
+        <div class="arp-table-responsive">
+          <table class="arp-data-table spacious-table">
+            <thead>
+              <tr>
+                <th style="width:30%">Target Host</th>
+                <th style="width:70%">Resolved MAC & Routing</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row for 10.10.10.1 (Gateway) -->
+              <tr class="${isVictimPoisoned && !isMitigated ? 'row-poisoned' : ''} ${victimFlash ? 'row-changed-flash' : ''}">
+                <td>
+                  <div class="ip-cell">
+                    <div class="ip-top-row">
+                      <span class="ip-address font-mono">10.10.10.1</span>
+                      <span class="type-pill ${isMitigated ? 'pill-static' : 'pill-dynamic'}">${isMitigated ? 'Static' : 'Dynamic'}</span>
+                    </div>
+                    <span class="ip-label">Gateway Router</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="binding-cell">
+                    <div class="binding-primary-row">
+                      <code class="font-mono mac-code ${isVictimPoisoned && !isMitigated ? 'mac-poison-pill' : (isMitigated ? 'mac-static' : 'mac-authentic')}">
+                        ${victimGwMac || gatewayRealMac || 'resolving...'}
+                      </code>
+                      <span class="badge-tag ${isMitigated ? 'tag-blue' : (isVictimPoisoned && !isMitigated ? 'tag-red badge-pulse' : 'tag-teal')}">
+                        ${isMitigated ? '🛡️ Protected' : (isVictimPoisoned && !isMitigated ? '⚠️ ATTACKER' : '✓ Authentic')}
+                      </span>
+                    </div>
+                    ${isVictimPoisoned && !isMitigated ? `
+                      <div class="binding-diff-row">
+                        <span class="diff-expected">True NIC: <code class="font-mono strikethrough">${gatewayRealMac}</code></span>
+                        <span class="diff-route text-danger">🚨 Diverted to Attacker</span>
+                      </div>
+                    ` : `
+                      <div class="binding-diff-row">
+                        <span class="diff-route text-safe">${isMitigated ? '🛡️ Direct — spoof ignored' : '✓ Direct legitimate delivery'}</span>
+                      </div>
+                    `}
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row for 10.10.10.66 (Attacker) -->
+              <tr>
+                <td>
+                  <div class="ip-cell">
+                    <div class="ip-top-row">
+                      <span class="ip-address font-mono">10.10.10.66</span>
+                      <span class="type-pill pill-dynamic">Dynamic</span>
+                    </div>
+                    <span class="ip-label">Attacker Host</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="binding-cell">
+                    <div class="binding-primary-row">
+                      <code class="font-mono mac-code" style="background:#F1F5F9;color:#334155">${victimAttackerMac || attackerMac || 'unknown'}</code>
+                      <span class="badge-tag" style="background:#F1F5F9;color:#475569">Local Neighbor</span>
+                    </div>
+                    <div class="binding-diff-row">
+                      <span class="diff-route text-safe">✓ Direct local delivery</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── GATEWAY ARP TABLE ── -->
+      <div class="arp-table-card ${isGwPoisoned && !isMitigated ? 'card-poisoned' : (isMitigated ? 'card-mitigated' : '')}">
+        <div class="arp-table-card-header">
+          <span class="table-header-title">
+            <span>🌐</span> Gateway Host ARP Cache (10.10.10.1)
+          </span>
+          <span class="badge-tag ${isMitigated ? 'tag-blue' : (isGwPoisoned ? 'tag-red badge-pulse' : 'tag-teal')}">
+            ${isMitigated ? '🛡️ Protected (Static)' : (isGwPoisoned ? '⚠️ POISONED!' : '✓ Authentic Victim')}
+          </span>
+        </div>
+        <div class="arp-table-responsive">
+          <table class="arp-data-table spacious-table">
+            <thead>
+              <tr>
+                <th style="width:30%">Target Host</th>
+                <th style="width:70%">Resolved MAC & Routing</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row for 10.10.10.10 (Victim) -->
+              <tr class="${isGwPoisoned && !isMitigated ? 'row-poisoned' : ''} ${gwFlash ? 'row-changed-flash' : ''}">
+                <td>
+                  <div class="ip-cell">
+                    <div class="ip-top-row">
+                      <span class="ip-address font-mono">10.10.10.10</span>
+                      <span class="type-pill ${isMitigated ? 'pill-static' : 'pill-dynamic'}">${isMitigated ? 'Static' : 'Dynamic'}</span>
+                    </div>
+                    <span class="ip-label">Victim Workstation</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="binding-cell">
+                    <div class="binding-primary-row">
+                      <code class="font-mono mac-code ${isGwPoisoned && !isMitigated ? 'mac-poison-pill' : (isMitigated ? 'mac-static' : 'mac-authentic')}">
+                        ${gwVictimMac || victimRealMac || 'resolving...'}
+                      </code>
+                      <span class="badge-tag ${isMitigated ? 'tag-blue' : (isGwPoisoned && !isMitigated ? 'tag-red badge-pulse' : 'tag-teal')}">
+                        ${isMitigated ? '🛡️ Protected' : (isGwPoisoned && !isMitigated ? '⚠️ ATTACKER' : '✓ Authentic')}
+                      </span>
+                    </div>
+                    ${isGwPoisoned && !isMitigated ? `
+                      <div class="binding-diff-row">
+                        <span class="diff-expected">True NIC: <code class="font-mono strikethrough">${victimRealMac}</code></span>
+                        <span class="diff-route text-danger">🚨 Inbound diverted to Attacker</span>
+                      </div>
+                    ` : `
+                      <div class="binding-diff-row">
+                        <span class="diff-route text-safe">${isMitigated ? '🛡️ Direct — spoof ignored' : '✓ Direct legitimate delivery'}</span>
+                      </div>
+                    `}
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Row for 10.10.10.66 (Attacker) -->
+              <tr>
+                <td>
+                  <div class="ip-cell">
+                    <div class="ip-top-row">
+                      <span class="ip-address font-mono">10.10.10.66</span>
+                      <span class="type-pill pill-dynamic">Dynamic</span>
+                    </div>
+                    <span class="ip-label">Attacker Host</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="binding-cell">
+                    <div class="binding-primary-row">
+                      <code class="font-mono mac-code" style="background:#F1F5F9;color:#334155">${gwAttackerMac || attackerMac || 'unknown'}</code>
+                      <span class="badge-tag" style="background:#F1F5F9;color:#475569">Local Neighbor</span>
+                    </div>
+                    <div class="binding-diff-row">
+                      <span class="diff-route text-safe">✓ Direct local delivery</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Dynamic Layer 2 Status & Impact Strip -->
+    <div class="arp-status-banner ${isMitigated ? 'state-mitigated' : (isAttacking ? 'state-poisoned' : 'state-healthy')}">
+      <span class="status-banner-icon">${isMitigated ? '🛡️' : (isAttacking ? (isMitm ? '🚨' : '🚫') : '✓')}</span>
+      <span class="status-banner-text">
+        ${isMitigated ?
+          '<strong>Static Defense Active:</strong> ARP bindings are locked with kernel flag <code>PERMANENT</code>. Forged replies are discarded by the kernel networking stack; authentic direct communication is preserved.' :
+          (isAttacking && isMitm ?
+            `<strong>MITM Active:</strong> IP-to-MAC resolution poisoned! Packets to <code>10.10.10.1</code> route to Attacker MAC (<code>${attackerMac}</code>), allowing the attacker to intercept and relay traffic.'` :
+            (isAttacking && isDos ?
+              `<strong>DoS Active:</strong> Victim ARP poisoned to Attacker MAC (<code>${attackerMac}</code>). With kernel forwarding disabled (<code>ip_forward=0</code>), packets are silently dropped (100% loss).` :
+              '<strong>Authentic LAN State:</strong> Both hosts resolve true physical NIC MACs. IP/ICMP frames flow directly with authentic ARP resolution.'
+            )
+          )
+        }
+      </span>
+    </div>
+  `;
+
+  container.innerHTML = html;
+  applySimViewMode();
 }
 
 /* Activity log */
@@ -1061,14 +1374,19 @@ function buildUI() {
                 <span class="title">Live ARP Network Map</span>
                 <span id="topology-attack-badge" class="badge-tag tag-teal">Normal Direct Traffic</span>
               </div>
+              <div class="sim-view-switcher" id="sim-view-switcher">
+                <button type="button" class="view-btn active" data-view="both" title="View Network Map and ARP Tables together">🔀 Map + Tables</button>
+                <button type="button" class="view-btn" data-view="map" title="View Network Map Only">🗺️ Map Only</button>
+                <button type="button" class="view-btn" data-view="tables" title="View ARP Resolution Tables Only">📋 Tables Only</button>
+              </div>
               <span class="subtitle">10.10.10.0/24 Isolated Bridge</span>
             </div>
 
             <!-- Mobile pan indicator hint -->
             <div class="mobile-pan-hint">↔ Swipe horizontally to explore full network topology</div>
 
-            <div class="topology-svg-wrap">
-              <svg id="topology-svg" viewBox="0 0 680 430" role="img" aria-label="Live ARP network topology diagram">
+            <div class="topology-svg-wrap" id="topology-svg-wrap">
+              <svg id="topology-svg" viewBox="0 0 1140 560" role="img" aria-label="Live ARP network topology diagram">
                 <defs>
                   <marker id="teal-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
                     <path d="M0,0 L0,6 L7,3 z" fill="#2A8C76"/>
@@ -1089,25 +1407,25 @@ function buildUI() {
                       <feMergeNode in="SourceGraphic" />
                     </feMerge>
                   </filter>
-                  <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#EAE6E2" stroke-width="0.5"/>
+                  <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#EAE6E2" stroke-width="0.5"/>
                   </pattern>
                 </defs>
-                <rect width="680" height="430" fill="url(#grid)" rx="14"/>
+                <rect width="1140" height="560" fill="url(#grid)" rx="14"/>
                 <g id="topology-dynamic-layer"></g>
               </svg>
             </div>
-            <div class="topology-explainer" id="topology-explainer">
-              <div class="explainer-status" id="explainer-status-text">
-                <strong>Current State:</strong> Normal Direct Traffic — Victim and Gateway communicate directly using authentic ARP bindings.
-              </div>
-              <div class="topology-legend">
-                <span class="legend-item"><span class="legend-dot dot-teal"></span> Genuine IP/ICMP Traffic</span>
-                <span class="legend-item"><span class="legend-dot dot-coral"></span> Forged ARP Replies (Spoofing)</span>
-                <span class="legend-item"><span class="legend-dot dot-amber"></span> Intercepted L2 Frames</span>
-                <span class="legend-item"><span class="legend-dot dot-purple"></span> MITM Relayed Frames</span>
-                <span class="legend-item"><span class="legend-dot dot-shield"></span> Static ARP Protected</span>
-              </div>
+            <div class="topology-legend-bar" id="topology-legend-bar">
+              <span class="legend-item"><span class="legend-dot dot-teal"></span> Genuine IP/ICMP</span>
+              <span class="legend-item"><span class="legend-dot dot-coral"></span> Forged ARP Replies</span>
+              <span class="legend-item"><span class="legend-dot dot-amber"></span> Intercepted Frames</span>
+              <span class="legend-item"><span class="legend-dot dot-purple"></span> MITM Relayed</span>
+              <span class="legend-item"><span class="legend-dot dot-shield"></span> Static Protected</span>
+            </div>
+
+            <!-- Live Kernel ARP Resolution Tables & Delta Tracker -->
+            <div class="topology-arp-tables-section" id="topology-arp-tables-section">
+              <!-- Dynamically rendered by renderArpTables() -->
             </div>
           </div>
 
@@ -1262,6 +1580,14 @@ function wireEvents() {
       renderTabs();
       if (state.activeTab === 'Assignment') renderQuiz();
     });
+  });
+
+  /* Sim view switcher (both / map / tables) */
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.view-btn');
+    if (!btn || !btn.dataset.view) return;
+    state.simViewMode = btn.dataset.view;
+    applySimViewMode();
   });
 
   /* Collapsible sections */

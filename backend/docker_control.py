@@ -168,6 +168,17 @@ def attack_stop() -> dict:
         CONTAINER_ATTACKER,
         ["python3", "/arp_spoof.py", "stop"],
     )
+    # Ensure authentic ARP cache state is reliably and immediately restored on both nodes.
+    # The gateway (a router) doesn't initiate traffic to the victim, so kernel-level
+    # neighbor replacement guarantees instant restoration without waiting for packet timeouts.
+    try:
+        victim_mac = _get_mac(CONTAINER_VICTIM)
+        gateway_mac = _get_mac(CONTAINER_GATEWAY)
+        _exec_in(CONTAINER_GATEWAY, ["ip", "neigh", "replace", IP_VICTIM, "lladdr", victim_mac, "dev", "eth0", "nud", "reachable"])
+        _exec_in(CONTAINER_VICTIM, ["ip", "neigh", "replace", IP_GATEWAY, "lladdr", gateway_mac, "dev", "eth0", "nud", "reachable"])
+    except Exception:
+        pass
+
     # tolerate non-zero if the script was already stopped
     return {"status": "attack_stopped", "output": output.strip()}
 
