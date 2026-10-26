@@ -8,44 +8,45 @@
 
 /* ─── Config ───────────────────────────────────────────────── */
 const API_BASE_URL = (window.LAB_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
-const WS_BASE_URL  = API_BASE_URL.replace(/^http/, 'ws');
+const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
 
 /* ─── Dynamic MACs learned from backend/network ────────────── */
 const realMacs = {
-  victim:   '',
-  gateway:  '',
+  victim: '',
+  gateway: '',
   attacker: '',
 };
 
 /* ─── Node metadata in SVG (680 × 430 viewBox) ─────────────── */
 const NODES = [
-  { key: 'victim',   label: 'Victim Target',    ip: '10.10.10.10', x: 125, y: 112 },
-  { key: 'gateway',  label: 'Default Gateway',  ip: '10.10.10.1',  x: 555, y: 112 },
+  { key: 'victim', label: 'Victim Target', ip: '10.10.10.10', x: 125, y: 112 },
+  { key: 'gateway', label: 'Default Gateway', ip: '10.10.10.1', x: 555, y: 112 },
   { key: 'attacker', label: 'Attacker Machine', ip: '10.10.10.66', x: 340, y: 327 },
 ];
 
 /* ─── Application state ─────────────────────────────────────── */
 const state = {
-  activeTab:    'Simulation',
+  activeTab: 'Simulation',
   socketStatus: 'connecting',   // 'connecting' | 'connected' | 'disconnected'
-  labRunning:   false,
+  labRunning: false,
   attackActive: false,
-  attackMode:   'mitm',
+  attackMode: 'mitm',
   mitigationOn: false,
-  events:       [],             // last 200 LabEvents
-  arpTables:    { victim: {}, gateway: {}, attacker: {} }, // node -> { ip: mac }
-  realMacs:     { victim: '', gateway: '', attacker: '' },
-  pending:      '',             // path of in-flight request
-  quizIndex:    0,
-  quizAnswer:   null,           // null | number
-  quizScore:    0,
+  events: [],             // last 200 LabEvents
+  arpTables: { victim: {}, gateway: {}, attacker: {} }, // node -> { ip: mac }
+  realMacs: { victim: '', gateway: '', attacker: '' },
+  pending: '',             // path of in-flight request
+  quizIndex: 0,
+  quizAnswer: null,           // null | number
+  quizScore: 0,
   quizQuestions: [],
-  quizLength:   10,
+  quizLength: 10,
+  quizUserAnswers: [],
   feedbackRating: 0,
   feedbackSubmitted: false,
   controlsOpen: true,
-  logOpen:      true,
-  simViewMode:  'both',         // 'both' | 'map' | 'tables'
+  logOpen: true,
+  simViewMode: 'both',         // 'both' | 'map' | 'tables'
 };
 
 /* ─── Tabs & module icons ───────────────────────────────────── */
@@ -1067,127 +1068,6 @@ const QUIZ = [
     "explanation": "This combines the core facts from the theory."
   },
   {
-    "question": "A new quiz attempt is started after completion. What should it do?",
-    "options": [
-      "Change the theory",
-      "Score against all 100",
-      "Select a fresh random subset and reshuffle options",
-      "Repeat the same ten in the same order"
-    ],
-    "correctIndex": 2,
-    "explanation": "Each attempt must generate a fresh test while scoring only its selected questions."
-  },
-  {
-    "question": "A correct option moves from index 2 to index 0 during option shuffling. What must change?",
-    "options": [
-      "It must remain 2",
-      "All options become correct",
-      "The question's bank position changes",
-      "correctIndex must become 0"
-    ],
-    "correctIndex": 3,
-    "explanation": "The answer index must track the shuffled option."
-  },
-  {
-    "question": "A 20-question test is sampled from a 100-question bank. What selection is required?",
-    "options": [
-      "Twenty distinct bank entries",
-      "One entry repeated twenty times",
-      "All 100 entries",
-      "Only the first twenty"
-    ],
-    "correctIndex": 0,
-    "explanation": "The requirement is a distinct random sample of the requested length."
-  },
-  {
-    "question": "What does random selection not guarantee?",
-    "options": [
-      "Option shuffling",
-      "Two students can never receive the same test",
-      "The requested length",
-      "Distinct questions within one test"
-    ],
-    "correctIndex": 1,
-    "explanation": "Random collisions are possible."
-  },
-  {
-    "question": "After option shuffling, what should scoring compare?",
-    "options": [
-      "The pre-sample position",
-      "The number of options",
-      "The chosen answer with the generated question's current correctIndex",
-      "The original bank position"
-    ],
-    "correctIndex": 2,
-    "explanation": "Scoring must use the generated, shuffled question."
-  },
-  {
-    "question": "Why generate the sample when Start Test is clicked?",
-    "options": [
-      "Opening a tab authenticates ARP",
-      "It prevents broadcasts",
-      "It permanently orders options",
-      "Each explicit attempt can receive a fresh sample and order"
-    ],
-    "correctIndex": 3,
-    "explanation": "Generation at start keeps an active attempt stable and restarts fresh."
-  },
-  {
-    "question": "A 10-question attempt is halfway complete. What is its progress denominator?",
-    "options": [
-      "10",
-      "20",
-      "100",
-      "The current option count"
-    ],
-    "correctIndex": 0,
-    "explanation": "Progress is based on the selected test length."
-  },
-  {
-    "question": "An attempt gets 8 correct out of 10. Which scoring is required?",
-    "options": [
-      "Score only option A",
-      "8/10 with one point per correct answer and no negative marking",
-      "8/100",
-      "Deduct points for wrong answers"
-    ],
-    "correctIndex": 1,
-    "explanation": "The generated test is scored independently, without negative marking."
-  },
-  {
-    "question": "A four-option question has correctIndex 4. How should validation classify it?",
-    "options": [
-      "Valid only for 20 questions",
-      "All options are correct",
-      "Invalid; zero-based valid indices are 0 through 3",
-      "Valid because there are four options"
-    ],
-    "correctIndex": 2,
-    "explanation": "Four zero-based options have indices 0, 1, 2, and 3."
-  },
-  {
-    "question": "A bank entry has three options. Which requirement does it violate?",
-    "options": [
-      "Every question must mention Layer 3",
-      "Every explanation must mention HTTPS",
-      "Every question must be definitional",
-      "Every question must have exactly four options"
-    ],
-    "correctIndex": 3,
-    "explanation": "The quiz contract requires four plausible options."
-  },
-  {
-    "question": "A generator shuffles options but loses each question's explanation. What breaks?",
-    "options": [
-      "The existing feedback flow can no longer justify the answer",
-      "The test has too many questions",
-      "The ARP cache expires",
-      "DAI drops the question"
-    ],
-    "correctIndex": 0,
-    "explanation": "Explanation is part of the existing question schema and feedback."
-  },
-  {
     "question": "A question shows only a forged Reply and asks whether MITM succeeded. What is correct?",
     "options": [
       "It proves a static entry",
@@ -1263,11 +1143,572 @@ const QUIZ = [
     ],
     "correctIndex": 3,
     "explanation": "This is the theory's key insight."
+  },
+  {
+    "question": "The attacker stops sending forged Replies after poisoning the victim. Later the victim's dynamic gateway entry expires and the victim needs to send to the gateway. What happens?",
+    "options": [
+      "The victim keeps using the attacker's MAC permanently",
+      "The victim broadcasts a new ARP Request and learns the real gateway MAC, so traffic returns to the direct path",
+      "The victim's IP is reassigned by DHCP",
+      "The victim switches automatically to a static entry"
+    ],
+    "correctIndex": 1,
+    "explanation": "Dynamic entries are short-lived; once the forged mapping expires and no new forgeries arrive, normal ARP resolution restores the legitimate mapping."
+  },
+  {
+    "question": "Forged Replies are sent about every 2 seconds, and entries expire after at least 30 seconds. Roughly how many forged Replies arrive during one minimum expiry window?",
+    "options": [
+      "About 2",
+      "About 6",
+      "About 15",
+      "About 60"
+    ],
+    "correctIndex": 2,
+    "explanation": "30 seconds divided by a 2-second interval is about 15, so the forged entry is refreshed many times before it could expire."
+  },
+  {
+    "question": "Only the victim's cache is poisoned, and the attacker has IP forwarding enabled. Which traffic can the attacker observe?",
+    "options": [
+      "Both directions between victim and gateway",
+      "Victim-to-gateway frames only, because the gateway still replies directly to the victim",
+      "Gateway-to-victim frames only",
+      "Neither direction, because forwarding hides the traffic"
+    ],
+    "correctIndex": 1,
+    "explanation": "The victim's cache controls only victim-originated frames; the gateway's unpoisoned cache sends its replies straight to the victim."
+  },
+  {
+    "question": "During a successful MITM, a victim loads one site over HTTP and another over HTTPS. What is the attacker's position?",
+    "options": [
+      "Both sessions are equally readable",
+      "Neither session passes through the attacker",
+      "HTTP content can be read and modified; HTTPS content appears only as ciphertext",
+      "HTTPS content can be read but HTTP content cannot"
+    ],
+    "correctIndex": 2,
+    "explanation": "Plaintext protocols are exposed to reading and modification; TLS protects content without the server's private key."
+  },
+  {
+    "question": "An in-path attacker tries to present a substituted certificate for an HTTPS site. What stops the substitution from being silent?",
+    "options": [
+      "ARP rejects the forged frame",
+      "The gateway signs the connection",
+      "Static ARP detects the certificate",
+      "Certificate validation (PKI) alerts the user to the substitution"
+    ],
+    "correctIndex": 3,
+    "explanation": "Certificate validation operates at a higher layer than ARP and can warn the user about substitution or SSL stripping."
+  },
+  {
+    "question": "The victim has a static gateway entry, but the attacker poisons only the gateway's cache with forwarding enabled. What is the resulting path?",
+    "options": [
+      "Victim-to-gateway frames go directly; gateway-to-victim frames pass through the attacker",
+      "Victim-to-gateway frames pass through the attacker; gateway-to-victim frames go directly",
+      "Both directions pass through the attacker",
+      "Neither direction is affected, so no frames can be captured"
+    ],
+    "correctIndex": 0,
+    "explanation": "Each device uses its own cache: the victim's static entry protects outbound frames, while the poisoned gateway cache redirects return frames."
+  },
+  {
+    "question": "A gateway's NIC is replaced, and it sends a gratuitous ARP announcing the new MAC. A victim has a static entry with the old MAC. What happens?",
+    "options": [
+      "The victim updates immediately because the gratuitous ARP is legitimate",
+      "DAI rewrites the victim's static entry",
+      "The static entry is not overwritten, so the victim keeps using the stale MAC until updated manually",
+      "The victim's entry changes to dynamic automatically"
+    ],
+    "correctIndex": 2,
+    "explanation": "Static entries are not overwritten by received ARP packets, even legitimate ones, so the stale mapping persists until an administrator fixes it."
+  },
+  {
+    "question": "A DHCP Snooping Binding Table lists IP V and MAC M on port P1. A device on port P2 sends an ARP claiming V is at M. What does DAI do?",
+    "options": [
+      "Allows it because the IP-MAC pair is valid somewhere",
+      "Allows it because the MAC is real",
+      "Encrypts it and forwards it",
+      "Drops and logs it because the claim does not match the binding for port P2"
+    ],
+    "correctIndex": 3,
+    "explanation": "DAI validates the claimed IP-MAC pair against the binding for the specific port the packet arrived on."
+  },
+  {
+    "question": "A legitimate host uses a manually configured IP and never obtained a DHCP lease. Based on how DAI validates claims, what is the likely effect?",
+    "options": [
+      "No binding exists for it, so its own ARP claims may be dropped as unmatched",
+      "DAI creates a binding automatically from its first ARP packet",
+      "DAI encrypts its ARP traffic",
+      "Port security approves its ARP automatically"
+    ],
+    "correctIndex": 0,
+    "explanation": "DAI compares ARP claims against the DHCP Snooping Binding Table, so a host without a binding can fail validation unless the table is accurate."
+  },
+  {
+    "question": "A host sends a gratuitous ARP for its own IP at startup and receives a reply from a different MAC claiming that IP. What does this indicate?",
+    "options": [
+      "A successful MITM",
+      "An IP address conflict",
+      "A static ARP entry",
+      "A DAI binding match"
+    ],
+    "correctIndex": 1,
+    "explanation": "Detecting IP conflicts at startup is a legitimate use of gratuitous ARP."
+  },
+  {
+    "question": "Only the gateway's cache is poisoned and forwarding is disabled. What does the victim most likely experience?",
+    "options": [
+      "Nothing, because the victim's cache is unchanged",
+      "Its requests reach the gateway, but replies are redirected to the attacker and dropped, so connectivity appears to fail",
+      "The victim's requests are dropped but replies arrive normally",
+      "HTTPS content becomes readable"
+    ],
+    "correctIndex": 1,
+    "explanation": "Victim-to-gateway frames still go directly, but the gateway's replies are sent to the attacker's MAC and blackholed."
+  },
+  {
+    "question": "The victim has a full-tunnel VPN and a static gateway entry. An attacker on the LAN poisons the gateway's cache. Which statement is most accurate?",
+    "options": [
+      "The victim's payload remains encrypted, but the gateway's frames to the victim may still be redirected",
+      "The attacker can now decrypt the tunnel",
+      "The victim's static entry protects the gateway's cache",
+      "No frames can reach the attacker"
+    ],
+    "correctIndex": 0,
+    "explanation": "Static ARP protects only the victim's own cache; the gateway's cache is separate, and the VPN limits content exposure rather than preventing redirection."
+  },
+  {
+    "question": "The attacker poisons both sides and forwards victim-to-gateway packets but drops gateway-to-victim packets. What is the outcome?",
+    "options": [
+      "A transparent MITM with all traffic relayed",
+      "Requests reach the internet but responses never return, so the victim loses connectivity",
+      "ARP becomes authenticated",
+      "Nothing changes for the victim"
+    ],
+    "correctIndex": 1,
+    "explanation": "Relaying must work in both directions for a transparent MITM; dropping one direction effectively causes DoS."
+  },
+  {
+    "question": "The victim broadcasts an ARP Request for the gateway IP and the attacker answers with its own MAC. Which missing property lets the victim accept this?",
+    "options": [
+      "The request was unicast",
+      "ARP encrypts the Reply",
+      "Switches validate every Reply",
+      "ARP has no mechanism to verify the sender actually owns the claimed IP"
+    ],
+    "correctIndex": 3,
+    "explanation": "ARP lacks authentication and identity verification, so a forged Reply is accepted like a genuine one."
+  },
+  {
+    "question": "A legitimate failover gratuitous ARP and a malicious gratuitous ARP both appear on the wire. What most reliably separates them?",
+    "options": [
+      "Their packet format, which always differs",
+      "Whether the announced MAC actually belongs to the legitimate owner of that IP",
+      "Whether the packet is broadcast",
+      "Whether the packet is unsolicited"
+    ],
+    "correctIndex": 1,
+    "explanation": "Both are unsolicited Replies of the same form; legitimacy depends on whether the announced mapping is truthful."
+  },
+  {
+    "question": "An attacker captures a valid HTTPS session. According to the theory, what can they NOT do without the server's private key?",
+    "options": [
+      "Redirect the frames",
+      "See that traffic exists",
+      "Read or forge the protected content",
+      "Poison the ARP caches"
+    ],
+    "correctIndex": 2,
+    "explanation": "Without the server's private key the attacker sees only ciphertext and cannot read or forge TLS-protected content."
+  },
+  {
+    "question": "Static entries for each other exist on both the victim and the gateway. The attacker sends forged Replies to both. What is the expected result?",
+    "options": [
+      "Both caches are overwritten",
+      "Only the victim's cache is overwritten",
+      "The attacker gains the gateway's IP",
+      "Neither mapping is overwritten, so traffic is not redirected through the attacker"
+    ],
+    "correctIndex": 3,
+    "explanation": "Static entries are not overwritten by received ARP packets, so both directions keep using the real MACs."
+  },
+  {
+    "question": "A switch allows only one MAC on the attacker's port, and the attacker poisons using its own single MAC. What follows?",
+    "options": [
+      "Port security does not directly stop the poisoning, because it does not validate ARP IP-MAC claims",
+      "Port security shuts the port immediately",
+      "DAI is not needed",
+      "The forged Replies are encrypted"
+    ],
+    "correctIndex": 0,
+    "explanation": "Port security limits MAC addresses per port but does not check whether the IP-MAC claim inside an ARP packet is true."
+  },
+  {
+    "question": "Which pairing correctly matches each defense to what it primarily protects?",
+    "options": [
+      "DAI: payload confidentiality; HTTPS: ARP validation",
+      "DAI: IP-MAC mapping integrity at the switch; HTTPS/VPN: content confidentiality",
+      "Port security: payload encryption; VPN: MAC limits",
+      "Static ARP: certificate validation; DAI: DNS"
+    ],
+    "correctIndex": 1,
+    "explanation": "Mapping-integrity controls and encryption address different stages of the attack."
+  },
+  {
+    "question": "Why does a MITM attacker with forwarding enabled usually go unnoticed, while a DoS attacker is quickly noticed?",
+    "options": [
+      "MITM traffic is encrypted by ARP",
+      "DoS attacks use DNS",
+      "Forwarding keeps connections working, whereas dropped traffic breaks connectivity",
+      "MITM changes the victim's IP"
+    ],
+    "correctIndex": 2,
+    "explanation": "In a MITM the connection still works, so victim and gateway typically notice nothing; in a DoS connectivity is lost."
+  },
+  {
+    "question": "A victim's cache shows the gateway IP mapped to the attacker's MAC, forwarding is on, and a certificate warning appears for an HTTPS site. What is the best interpretation?",
+    "options": [
+      "ARP validation failed, so the certificate is invalid by definition",
+      "The attacker decrypted TLS successfully",
+      "The warning means the attacker is no longer in path",
+      "The attacker is in path, and higher-layer certificate validation caught an interception attempt"
+    ],
+    "correctIndex": 3,
+    "explanation": "ARP redirection puts the attacker in path, but TLS certificate validation can still detect substitution or SSL stripping."
+  },
+  {
+    "question": "Which statement about ARP's origin and design assumptions matches the theory?",
+    "options": [
+      "It was designed in 1982 with built-in cryptographic signatures",
+      "It was designed for large untrusted WANs and routes across networks",
+      "It was specified in RFC 826 in 1982 for small, trusted LANs",
+      "It was designed to replace MAC addresses with IP addresses"
+    ],
+    "correctIndex": 2,
+    "explanation": "ARP (RFC 826, 1982) was designed for small, trusted LANs, which is why it has no authentication."
+  },
+  {
+    "question": "Host A (10.10.10.10) sends an ARP Request for 10.10.10.1. Which field combination is correct?",
+    "options": [
+      "Source MAC: A's MAC; Destination MAC: ff:ff:ff:ff:ff:ff; Source IP: 10.10.10.10; Target IP: 10.10.10.1",
+      "Source MAC: B's MAC; Destination MAC: A's MAC; Source IP: 10.10.10.1; Target IP: 10.10.10.10",
+      "Source MAC: A's MAC; Destination MAC: B's MAC; Source IP: 10.10.10.10; Target IP: 10.10.10.1",
+      "Source MAC: ff:ff:ff:ff:ff:ff; Destination MAC: A's MAC; Source IP: 10.10.10.1; Target IP: 10.10.10.1"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Request is sent from A's MAC to the broadcast MAC, carrying A's IP as source and B's IP as target."
+  },
+  {
+    "question": "Host B (10.10.10.1) answers Host A's ARP Request. Which field combination does the Reply carry?",
+    "options": [
+      "Destination MAC: ff:ff:ff:ff:ff:ff; Source IP: 10.10.10.10",
+      "Source MAC: A's MAC; Destination MAC: B's MAC",
+      "Source IP: 10.10.10.10; Target IP: 10.10.10.1",
+      "Source MAC: B's MAC; Destination MAC: A's MAC; Source IP: 10.10.10.1; Target IP: 10.10.10.10"
+    ],
+    "correctIndex": 3,
+    "explanation": "The Reply is a unicast from B to A, with B's IP as source and A's IP as target."
+  },
+  {
+    "question": "Which pair of Linux tools can be used to inspect the ARP cache, according to the theory?",
+    "options": [
+      "arp -s and ip route",
+      "arp -n and ip neigh",
+      "arp -a and ip addr",
+      "ping and traceroute"
+    ],
+    "correctIndex": 1,
+    "explanation": "The theory lists arp -n (or arp -a on Windows) and ip neigh on Linux."
+  },
+  {
+    "question": "What does 'nud permanent' mean in 'ip neigh add 10.10.10.1 lladdr <MAC> dev eth0 nud permanent'?",
+    "options": [
+      "The entry is learned automatically and expires after 120 seconds",
+      "The entry is broadcast to every host on the LAN",
+      "The entry is static and cannot be overwritten by received ARP packets",
+      "The entry is encrypted with the gateway's key"
+    ],
+    "correctIndex": 2,
+    "explanation": "Permanent entries are static, so forged ARP Replies cannot overwrite them."
+  },
+  {
+    "question": "In a full ARP poisoning attack, what forged claim is sent to the Gateway?",
+    "options": [
+      "10.10.10.10 (Victim) is at the attacker's MAC",
+      "10.10.10.1 (Gateway) is at the attacker's MAC",
+      "The attacker's IP is at the Victim's MAC",
+      "The broadcast address is at the Gateway's MAC"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Gateway is told the Victim's IP maps to the attacker's MAC; the Victim is told the Gateway's IP maps to the attacker's MAC."
+  },
+  {
+    "question": "Why does a bidirectional MITM require forged Replies to two targets rather than one?",
+    "options": [
+      "ARP forbids sending only one Reply",
+      "Each device uses its own cache, so both the victim-to-gateway and gateway-to-victim directions must be redirected separately",
+      "A single Reply is always rejected by the switch",
+      "The Reply must be sent twice to be authenticated"
+    ],
+    "correctIndex": 1,
+    "explanation": "Each device's cache controls only its own outgoing frames, so both caches must be poisoned to capture both directions."
+  },
+  {
+    "question": "Which of the following is NOT listed in the theory as something a MITM attacker can do?",
+    "options": [
+      "Read plaintext such as HTTP, Telnet, and FTP passwords",
+      "Modify packets in transit",
+      "Replay captured credentials",
+      "Decrypt valid TLS traffic without the server's private key"
+    ],
+    "correctIndex": 3,
+    "explanation": "Without the server's private key the attacker sees only ciphertext; reading, modifying, and replaying apply to plaintext traffic."
+  },
+  {
+    "question": "Why is DoS described as 'disruption, not surveillance'?",
+    "options": [
+      "Because DoS encrypts all traffic",
+      "Because DoS requires DNS changes",
+      "Because redirected packets are discarded rather than relayed, so no inspection of the conversation is possible",
+      "Because DoS only affects broadcasts"
+    ],
+    "correctIndex": 2,
+    "explanation": "With forwarding disabled, the attacker drops the traffic, so the victim loses connectivity and nothing is passed on."
+  },
+  {
+    "question": "What does the DHCP Snooping Binding Table map for each switch port, according to the theory?",
+    "options": [
+      "The expected IP, MAC, and VLAN combination",
+      "The expected certificate, key, and hostname",
+      "The expected DNS name, TTL, and port speed",
+      "The expected gateway, subnet mask, and cache timeout"
+    ],
+    "correctIndex": 0,
+    "explanation": "DAI compares ARP claims with the IP/MAC/VLAN combination expected on each port."
+  },
+  {
+    "question": "Which prerequisite does DAI's validation rely on?",
+    "options": [
+      "A manual static entry on every host",
+      "A VPN tunnel between all hosts",
+      "A valid TLS certificate on each port",
+      "A managed Layer 2 switch maintaining a DHCP Snooping Binding Table"
+    ],
+    "correctIndex": 3,
+    "explanation": "DAI is a managed-switch feature that validates ARP claims against DHCP snooping bindings."
+  },
+  {
+    "question": "Why can encryption at Layers 4-7 not prevent ARP poisoning's redirection?",
+    "options": [
+      "Because encryption only works on broadcast frames",
+      "Because ARP poisoning acts at Layer 2, where frame delivery is decided before payload protection is involved",
+      "Because TLS rewrites MAC addresses",
+      "Because VPNs disable ARP caches"
+    ],
+    "correctIndex": 1,
+    "explanation": "ARP poisoning changes local frame delivery at Layer 2; encryption protects content but does not stop frames being redirected."
+  },
+  {
+    "question": "Why does ARP poisoning redirect VPN traffic to the attacker without exposing the payload?",
+    "options": [
+      "The traffic is encrypted inside the tunnel before it is placed in the Layer 2 frame, so the attacker receives only ciphertext",
+      "The VPN disables the victim's ARP cache",
+      "The attacker has the VPN key by default",
+      "The VPN converts MAC addresses into IP addresses"
+    ],
+    "correctIndex": 0,
+    "explanation": "The tunnel payload is encrypted before framing, so redirected frames carry unreadable content."
+  },
+  {
+    "question": "During ARP-based interception of an SSH session, the attacker presents a different server key. What does the user see?",
+    "options": [
+      "A normal login with no change",
+      "A new ARP Request",
+      "A host-key mismatch warning that signals a possible interception attempt",
+      "An automatic repair of the ARP cache"
+    ],
+    "correctIndex": 2,
+    "explanation": "SSH host key fingerprint verification produces a mismatch warning even when traffic is redirected."
+  },
+  {
+    "question": "Why is the attacker's re-send interval (~2 seconds) much shorter than the minimum cache expiry (30 seconds)?",
+    "options": [
+      "To make the switch drop legitimate Replies",
+      "To change the attacker's MAC regularly",
+      "To avoid triggering DHCP",
+      "To refresh the forged entry before it can expire and be replaced by the legitimate mapping"
+    ],
+    "correctIndex": 3,
+    "explanation": "Frequent forged Replies keep the poisoned entry fresh so the real mapping cannot be relearned."
+  },
+  {
+    "question": "Both caches are poisoned. On the victim, what does the entry for the gateway IP show?",
+    "options": [
+      "The gateway IP mapped to the attacker's MAC; the victim's own IP configuration is unchanged",
+      "The gateway IP replaced by the attacker's IP",
+      "A static entry with the real gateway MAC",
+      "No entry, because poisoning deletes the cache"
+    ],
+    "correctIndex": 0,
+    "explanation": "Poisoning changes the IP-to-MAC association, not the configured IP addresses."
+  },
+  {
+    "question": "Which two legitimate uses of gratuitous ARP does the theory list?",
+    "options": [
+      "Encrypting traffic and authenticating hosts",
+      "IP conflict detection on startup and announcing a MAC address change",
+      "Routing across networks and resolving DNS names",
+      "Disabling forwarding and clearing caches"
+    ],
+    "correctIndex": 1,
+    "explanation": "Gratuitous ARP is used for conflict detection and for announcing MAC changes such as NIC replacement or failover."
+  },
+  {
+    "question": "Which of these is listed in the theory as absent from ARP?",
+    "options": [
+      "A digital signature on ARP packets",
+      "A broadcast request",
+      "A 48-bit hardware address",
+      "A cache of recent mappings"
+    ],
+    "correctIndex": 0,
+    "explanation": "The theory lists missing signatures, sender identity verification, and sequence numbers or challenge-response."
+  },
+  {
+    "question": "What does port security do about ARP spoofing, according to the theory?",
+    "options": [
+      "It validates every IP-MAC claim in ARP packets",
+      "It encrypts ARP traffic",
+      "It does not directly prevent it but limits the attacker's ability to move around the network",
+      "It replaces the need for a gateway"
+    ],
+    "correctIndex": 2,
+    "explanation": "Port security limits MAC addresses per port and can shut down the port; it does not inspect ARP claims."
+  },
+  {
+    "question": "Which layered-defense statement is most accurate?",
+    "options": [
+      "HTTPS makes DAI unnecessary because it encrypts ARP",
+      "DAI makes HTTPS unnecessary because it decrypts traffic",
+      "Static ARP and port security both encrypt payloads",
+      "DAI blocks forged mappings at the switch, while HTTPS/VPN limit what an attacker can read or forge if redirection still occurs"
+    ],
+    "correctIndex": 3,
+    "explanation": "Mapping-integrity controls and encryption address different stages of the attack and complement each other."
+  },
+  {
+    "question": "A victim sends a packet to a remote internet IP. Which statement about the Ethernet frame is correct?",
+    "options": [
+      "The frame's destination MAC is the remote server's MAC",
+      "The frame's destination MAC is the gateway's MAC while the packet's destination IP is the remote IP",
+      "The frame's destination MAC is broadcast",
+      "The frame's destination IP is replaced by the gateway's MAC"
+    ],
+    "correctIndex": 1,
+    "explanation": "The local frame targets the gateway at Layer 2 while the IP packet keeps the remote Layer 3 destination."
+  },
+  {
+    "question": "According to the theory, why do devices update their ARP caches even from packets they never requested?",
+    "options": [
+      "By design, for efficiency, and this is the root cause of ARP's vulnerability",
+      "Because DHCP requires it",
+      "Because TLS demands it",
+      "Because switches force the update"
+    ],
+    "correctIndex": 0,
+    "explanation": "Accepting unsolicited ARP saves requests but lets any device inject mappings."
+  },
+  {
+    "question": "Which set of observations together best supports a transparent MITM?",
+    "options": [
+      "Only one unsolicited ARP packet in a capture",
+      "A static entry on the victim and DAI enabled",
+      "Both caches map the other host to the attacker's MAC, forwarding is enabled, and connectivity continues",
+      "Both caches are correct and forwarding is disabled"
+    ],
+    "correctIndex": 2,
+    "explanation": "Poisoned caches in both directions plus forwarding produce the Victim -> Attacker -> Gateway path with working connectivity."
+  },
+  {
+    "question": "Why can an attacker on a remote network not directly poison a LAN's ARP caches?",
+    "options": [
+      "ARP is encrypted between networks",
+      "ARP operates on the local network segment, so the attacker must be on the same LAN",
+      "DNS blocks remote ARP",
+      "Gateways sign every ARP packet"
+    ],
+    "correctIndex": 1,
+    "explanation": "ARP resolves addresses within a local segment; a malicious device must be on that segment."
+  },
+  {
+    "question": "Why is static ARP described as impractical at scale?",
+    "options": [
+      "It encrypts too much traffic",
+      "It requires a managed switch",
+      "It changes IP addresses automatically",
+      "Every device must be configured manually and entries updated whenever a NIC changes"
+    ],
+    "correctIndex": 3,
+    "explanation": "Manual configuration and maintenance on every device does not scale."
+  },
+  {
+    "question": "A MITM attacker with forwarding enabled is on a network where the victim uses Telnet. What can the attacker do?",
+    "options": [
+      "Read the credentials, modify the traffic, and replay captured credentials",
+      "Only observe encrypted ciphertext",
+      "Only drop the connection",
+      "Nothing, because Telnet uses MAC addresses"
+    ],
+    "correctIndex": 0,
+    "explanation": "Plaintext protocols like Telnet expose credentials to reading, modification, and replay."
+  },
+  {
+    "question": "Why can a victim's OS not distinguish a legitimate gratuitous ARP from a forged one?",
+    "options": [
+      "Legitimate ones are always encrypted",
+      "Forged ones always have a different format",
+      "ARP has no authentication, so both are unsolicited Replies that are accepted the same way",
+      "Only forged ones update the cache"
+    ],
+    "correctIndex": 2,
+    "explanation": "Without sender verification, the OS cannot tell a truthful mapping from a false one."
+  },
+  {
+    "question": "Assume exactly one forged Reply to the victim and one to the gateway every 2 seconds. How many forged Replies are sent in 60 seconds?",
+    "options": [
+      "30",
+      "60",
+      "120",
+      "15"
+    ],
+    "correctIndex": 1,
+    "explanation": "60 / 2 = 30 cycles, each sending 2 Replies, so 60 forged Replies."
+  },
+  {
+    "question": "Which MITM capability requires both forwarding and an unencrypted protocol?",
+    "options": [
+      "Observing which MAC addresses are on the LAN",
+      "Sending a gratuitous ARP",
+      "Re-sending forged Replies every 2 seconds",
+      "Injecting malicious content into a plaintext HTTP response in transit"
+    ],
+    "correctIndex": 3,
+    "explanation": "Modifying packets in transit works on plaintext traffic when the attacker is in path and relaying."
+  },
+  {
+    "question": "Which is a legitimate, non-malicious reason a MAC address associated with an IP might change?",
+    "options": [
+      "Using HTTPS",
+      "Enabling a VPN",
+      "A NIC replacement or failover",
+      "Running a DNS query"
+    ],
+    "correctIndex": 2,
+    "explanation": "The theory lists NIC replacement or failover as a legitimate reason for a MAC change announced with gratuitous ARP."
   }
 ];
 
 /* ─── DOM helpers ───────────────────────────────────────────── */
-const $  = (sel, ctx = document) => ctx.querySelector(sel);
+const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
 /* ─── Toast notifications ───────────────────────────────────── */
@@ -1347,9 +1788,9 @@ async function callApi(path, body) {
 }
 
 /* ─── WebSocket with exponential backoff ────────────────────── */
-let _ws        = null;
+let _ws = null;
 let _wsAttempt = 0;
-let _wsTimer   = null;
+let _wsTimer = null;
 
 function connectWs() {
   state.socketStatus = 'connecting';
@@ -1438,7 +1879,7 @@ function renderTabs() {
 
 /* WS connection badge */
 function renderWsStatus() {
-  const dot  = $('#ws-dot');
+  const dot = $('#ws-dot');
   const text = $('#ws-text');
   if (!dot || !text) return;
   dot.style.background = state.socketStatus === 'connected' ? '#2A8C76' : '#E06C62';
@@ -2064,15 +2505,15 @@ function renderArpTables() {
       <span class="status-banner-icon">${isMitigated ? '🛡️' : (isAttacking ? (isMitm ? '🚨' : '🚫') : '✓')}</span>
       <span class="status-banner-text">
         ${isMitigated ?
-          '<strong>Static Defense Active:</strong> ARP bindings are locked with kernel flag <code>PERMANENT</code>. Forged replies are discarded by the kernel networking stack; authentic direct communication is preserved.' :
-          (isAttacking && isMitm ?
-            `<strong>MITM Active:</strong> IP-to-MAC resolution poisoned! Packets to <code>10.10.10.1</code> route to Attacker MAC (<code>${attackerMac}</code>), allowing the attacker to intercept and relay traffic.'` :
-            (isAttacking && isDos ?
-              `<strong>DoS Active:</strong> Victim ARP poisoned to Attacker MAC (<code>${attackerMac}</code>). With kernel forwarding disabled (<code>ip_forward=0</code>), packets are silently dropped (100% loss).` :
-              '<strong>Authentic LAN State:</strong> Both hosts resolve true physical NIC MACs. IP/ICMP frames flow directly with authentic ARP resolution.'
-            )
-          )
-        }
+      '<strong>Static Defense Active:</strong> ARP bindings are locked with kernel flag <code>PERMANENT</code>. Forged replies are discarded by the kernel networking stack; authentic direct communication is preserved.' :
+      (isAttacking && isMitm ?
+        `<strong>MITM Active:</strong> IP-to-MAC resolution poisoned! Packets to <code>10.10.10.1</code> route to Attacker MAC (<code>${attackerMac}</code>), allowing the attacker to intercept and relay traffic.'` :
+        (isAttacking && isDos ?
+          `<strong>DoS Active:</strong> Victim ARP poisoned to Attacker MAC (<code>${attackerMac}</code>). With kernel forwarding disabled (<code>ip_forward=0</code>), packets are silently dropped (100% loss).` :
+          '<strong>Authentic LAN State:</strong> Both hosts resolve true physical NIC MACs. IP/ICMP frames flow directly with authentic ARP resolution.'
+        )
+      )
+    }
       </span>
     </div>
   `;
@@ -2097,11 +2538,11 @@ function renderLog() {
   box.innerHTML = logs.map(e => {
     let cls = 'log-entry';
     if (e.type === 'log' && e.level === 'error') cls += ' error';
-    if (e.type === 'log' && e.level === 'warn')  cls += ' warn';
+    if (e.type === 'log' && e.level === 'warn') cls += ' warn';
     const time = e.ts ? `[${new Date(e.ts * 1000).toLocaleTimeString()}] ` : '';
     let text = '';
-    if (e.type === 'log')              text = e.message;
-    else if (e.type === 'attack_state')    text = `attack_state active=${e.active} mode=${e.mode}`;
+    if (e.type === 'log') text = e.message;
+    else if (e.type === 'attack_state') text = `attack_state active=${e.active} mode=${e.mode}`;
     else if (e.type === 'mitigation_state') text = `mitigation enabled=${e.enabled}`;
     return `<p class="${cls}">${time}${text}</p>`;
   }).join('');
@@ -2133,114 +2574,410 @@ function createQuizAttempt(length) {
   state.quizIndex = 0;
   state.quizScore = 0;
   state.quizAnswer = null;
+  state.quizUserAnswers = [];
 }
 
 function renderQuiz() {
   const panel = $('#panel-Assignment');
   if (!panel) return;
 
+  // ─── STATE 1: Test Setup / Launcher Screen ───
   if (!state.quizQuestions.length) {
     panel.innerHTML = `
-      <div class="quiz-container">
-        <div class="intro-block">
-          <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>Knowledge Assessment</h2>
-          <p>Choose a test length. A fresh randomized test will be generated from the question bank.</p>
+      <div class="intro-block">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <span class="intro-label">ARP / Virtual Lab</span>
+            <h2>Knowledge Assessment & Lab Assignment</h2>
+          </div>
+          <span class="badge-tag tag-standard">Module Evaluation</span>
         </div>
-        <div class="quiz-score-card">
-          <label for="quiz-length" style="display:block;color:var(--text-main);font-weight:700;margin-bottom:10px">Questions per test</label>
-          <select id="quiz-length" style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-main);margin-right:8px">
-            <option value="10" ${state.quizLength === 10 ? 'selected' : ''}>10 questions</option>
-            <option value="20" ${state.quizLength === 20 ? 'selected' : ''}>20 questions</option>
-          </select>
-          <button class="btn-primary-pill" id="quiz-start">Start Test</button>
+        <p>Test your conceptual understanding of Address Resolution Protocol mechanics, cache poisoning vectors (MITM interception vs. DoS blackholing), Linux kernel neighbor management, and Layer 2 mitigations.</p>
+      </div>
+
+      <div class="assignment-overview-grid">
+        <div class="assignment-info-card">
+          <div class="info-icon-badge">🎲</div>
+          <div class="info-content">
+            <span class="info-tag">Dynamic Engine</span>
+            <h3>Randomized Assessment</h3>
+            <p>Questions and multiple-choice options are dynamically shuffled from our verified question repository using the Fisher-Yates algorithm, providing a distinct test each session.</p>
+          </div>
+        </div>
+
+        <div class="assignment-info-card">
+          <div class="info-icon-badge">🎯</div>
+          <div class="info-content">
+            <span class="info-tag">Curriculum Scope</span>
+            <h3>Core Concepts Tested</h3>
+            <p>Covers Layer 2/3 addressing boundaries, broadcast vs. unicast frames, Gratuitous ARP manipulation, kernel IP forwarding, static ARP entries, and switch-level DAI.</p>
+          </div>
+        </div>
+
+        <div class="assignment-info-card">
+          <div class="info-icon-badge">⚡</div>
+          <div class="info-content">
+            <span class="info-tag">Instant Review</span>
+            <h3>Immediate Feedback & RFCs</h3>
+            <p>Receive instantaneous answer verification, RFC 826 contextual explanations, interactive progress tracking, and a comprehensive end-of-quiz answer breakdown.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-launcher-card">
+        <div class="launcher-header">
+          <div class="launcher-title-group">
+            <span class="intro-label">Assessment Setup</span>
+            <h3>Configure Your Test Session</h3>
+            <p>Select your desired test length below. Your randomized question set will be generated instantly.</p>
+          </div>
+        </div>
+
+        <div class="quiz-length-selector">
+          <div class="length-option-card ${state.quizLength === 10 ? 'selected' : ''}" data-length="10">
+            <div class="length-radio-indicator"></div>
+            <div class="length-details">
+              <div class="flex items-center justify-between">
+                <span class="length-title">10 Questions</span>
+                <span class="length-badge">Quick Assessment</span>
+              </div>
+              <p class="length-desc">Ideal for a rapid post-lab concept check (~5–8 minutes).</p>
+            </div>
+          </div>
+
+          <div class="length-option-card ${state.quizLength === 20 ? 'selected' : ''}" data-length="20">
+            <div class="length-radio-indicator"></div>
+            <div class="length-details">
+              <div class="flex items-center justify-between">
+                <span class="length-title">20 Questions</span>
+                <span class="length-badge badge-comprehensive">Comprehensive Exam</span>
+              </div>
+              <p class="length-desc">Deep-dive assessment covering all attack scenarios & defenses (~12–15 minutes).</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="launcher-actions">
+          <button class="btn-primary-pill" id="quiz-start">
+            <span>Start Assessment Test</span>
+            <span>→</span>
+          </button>
         </div>
       </div>`;
-    $('#quiz-start').addEventListener('click', () => {
-      const length = parseInt($('#quiz-length').value, 10);
-      createQuizAttempt(length);
+
+    $$('.length-option-card', panel).forEach(card => {
+      card.addEventListener('click', () => {
+        $$('.length-option-card', panel).forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        state.quizLength = parseInt(card.dataset.length, 10);
+      });
+    });
+
+    $('#quiz-start', panel).addEventListener('click', () => {
+      createQuizAttempt(state.quizLength);
       renderQuiz();
     });
     return;
   }
 
+  // ─── STATE 3: Test Completed / Results Dashboard ───
   const done = state.quizIndex >= state.quizQuestions.length;
   if (done) {
+    const percentage = Math.round((state.quizScore / state.quizQuestions.length) * 100);
+    const isMaster = percentage >= 80;
+    const isProficient = percentage >= 50;
+
+    const verdictTitle = isMaster
+      ? '🎉 Outstanding Result!'
+      : (isProficient ? '👍 Good Effort!' : '📖 Room for Improvement');
+
+    const verdictDesc = isMaster
+      ? 'You have demonstrated a comprehensive understanding of ARP mechanics, cache poisoning, and Layer 2 mitigations.'
+      : (isProficient
+        ? 'Solid foundational grasp. Review the Theory and Procedure tabs to reinforce your knowledge of IP forwarding and switch DAI.'
+        : 'Review the Theory and Procedure tabs to reinforce your knowledge of ARP request/reply cycles and DAI defenses.');
+
+    const recommendation = isMaster
+      ? 'Ready for advanced defense configurations and network protocol analysis.'
+      : (isProficient
+        ? 'Recommended: Re-run the Simulation in DoS mode to inspect dropped frames, then retake the 20-question quiz.'
+        : 'Recommended: Walk through the Procedure steps 1 through 6 in the Simulation tab, observing the live ARP table diffs.');
+
     panel.innerHTML = `
-      <div class="quiz-container">
-        <div class="intro-block">
-          <span class="intro-label">ARP / Virtual Lab</span>
-          <h2>Assignment Completed</h2>
-          <p>Review your results and restart whenever you'd like to test your understanding again.</p>
+      <div class="intro-block">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <span class="intro-label">ARP / Virtual Lab</span>
+            <h2>Assignment Completed</h2>
+          </div>
+          <span class="badge-tag ${isMaster ? 'tag-safe' : (isProficient ? 'tag-warning' : 'tag-danger')}">
+            ${isMaster ? 'Mastery Achieved' : (isProficient ? 'Proficient' : 'Needs Review')}
+          </span>
         </div>
-        <div class="quiz-score-card">
-          <p class="quiz-score">${state.quizScore} / ${state.quizQuestions.length}</p>
-          <p style="color:var(--text-main);font-weight:700;font-size:16px;margin-bottom:6px">
-            ${state.quizScore >= 8 ? '🎉 Outstanding Result!' : (state.quizScore >= 5 ? '👍 Good Effort!' : '📖 Room for Improvement')}
-          </p>
-          <p style="color:var(--text-secondary);margin-bottom:24px;font-size:13.5px;line-height:1.6">
-            ${state.quizScore >= 8
-              ? 'You have demonstrated a comprehensive understanding of ARP mechanics, cache poisoning, and Layer 2 mitigations.'
-              : 'Review the Theory and Procedure tabs to reinforce your knowledge of ARP request/reply cycles and DAI defenses.'}
-          </p>
-          <button class="btn-primary-pill" id="quiz-restart">↺ Restart Quiz</button>
+        <p>Review your assessment performance, benchmark score, and examine the detailed explanations for each question below.</p>
+      </div>
+
+      <div class="quiz-results-dashboard">
+        <div class="results-summary-grid">
+          <div class="results-hero-card">
+            <div class="hero-score-badge">
+              <span class="score-number">${state.quizScore}</span>
+              <span class="score-total">/ ${state.quizQuestions.length}</span>
+            </div>
+            <div class="hero-score-percent">${percentage}% Score</div>
+            <h3 class="hero-verdict-title">${verdictTitle}</h3>
+            <p class="hero-verdict-desc">${verdictDesc}</p>
+            <div class="hero-action-buttons">
+              <button class="btn-primary-pill" id="quiz-restart">↺ Retake Quiz</button>
+              <button class="btn-secondary" id="quiz-to-sim">← Back to Simulation</button>
+            </div>
+          </div>
+
+          <div class="results-metrics-card">
+            <h4>Performance Breakdown</h4>
+            <div class="metrics-grid">
+              <div class="metric-box">
+                <span class="metric-val text-green">${state.quizScore}</span>
+                <span class="metric-lbl">Correct Answers</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-val text-coral">${state.quizQuestions.length - state.quizScore}</span>
+                <span class="metric-lbl">Incorrect Answers</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-val text-blue">${percentage}%</span>
+                <span class="metric-lbl">Accuracy Rate</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-val text-brand">${state.quizQuestions.length}</span>
+                <span class="metric-lbl">Total Questions</span>
+              </div>
+            </div>
+            <div class="metric-note">
+              💡 <strong>Actionable Guidance:</strong> ${recommendation}
+            </div>
+          </div>
+        </div>
+
+        <div class="quiz-review-deck">
+          <div class="review-deck-header">
+            <div>
+              <h3>Detailed Question Review</h3>
+              <p>Analyze each question, your selected choice, and the official RFC theoretical explanation:</p>
+            </div>
+            <span class="quiz-progress-badge">${state.quizQuestions.length} Questions Reviewed</span>
+          </div>
+
+          <div class="review-cards-list">
+            ${state.quizQuestions.map((q, idx) => {
+      const ans = state.quizUserAnswers[idx];
+      const isCorrect = ans && ans.isCorrect;
+      const selectedIdx = ans ? ans.selectedIndex : null;
+      return `
+                <div class="review-question-card ${isCorrect ? 'review-correct' : 'review-wrong'}">
+                  <div class="review-card-top">
+                    <div class="review-q-num">
+                      <span class="q-badge">Question ${idx + 1}</span>
+                      <span class="review-status-tag ${isCorrect ? 'status-correct' : 'status-wrong'}">
+                        ${isCorrect ? '✓ Correct (+1 pt)' : '✕ Incorrect (0 pt)'}
+                      </span>
+                    </div>
+                  </div>
+                  <h4 class="review-question-text">${q.question}</h4>
+                  <div class="review-options-display">
+                    ${q.options.map((opt, optIdx) => {
+        let optClass = 'review-opt';
+        if (optIdx === q.correctIndex) optClass += ' is-correct-answer';
+        if (selectedIdx === optIdx && !isCorrect) optClass += ' is-user-wrong';
+        return `
+                        <div class="${optClass}">
+                          <span class="review-opt-letter">${String.fromCharCode(65 + optIdx)}</span>
+                          <span class="review-opt-text">${opt}</span>
+                          ${optIdx === q.correctIndex ? '<span class="review-opt-tag tag-correct">Correct Answer</span>' : ''}
+                          ${selectedIdx === optIdx && !isCorrect ? '<span class="review-opt-tag tag-wrong">Your Choice</span>' : ''}
+                        </div>
+                      `;
+      }).join('')}
+                  </div>
+                  <div class="review-explanation-box">
+                    <strong>Theoretical & Practical Context:</strong>
+                    <p>${q.explanation}</p>
+                  </div>
+                </div>
+              `;
+    }).join('')}
+          </div>
         </div>
       </div>`;
-    $('#quiz-restart').addEventListener('click', () => {
+
+    $('#quiz-restart', panel).addEventListener('click', () => {
       state.quizQuestions = [];
-      state.quizIndex = 0; state.quizScore = 0; state.quizAnswer = null;
+      state.quizUserAnswers = [];
+      state.quizIndex = 0;
+      state.quizScore = 0;
+      state.quizAnswer = null;
       renderQuiz();
     });
+
+    const simBtn = $('#quiz-to-sim', panel);
+    if (simBtn) {
+      simBtn.addEventListener('click', () => {
+        state.activeTab = 'Simulation';
+        renderTabs();
+      });
+    }
     return;
   }
 
+  // ─── STATE 2: Active Question View ───
   const q = state.quizQuestions[state.quizIndex];
   const progressPercent = Math.round(((state.quizIndex + 1) / state.quizQuestions.length) * 100);
 
   panel.innerHTML = `
-    <div class="quiz-container">
-      <div class="intro-block">
-        <div class="flex items-center justify-between flex-wrap gap-2">
-          <span class="intro-label">ARP / Virtual Lab</span>
-          <span class="quiz-progress-badge">Question ${state.quizIndex + 1} of ${state.quizQuestions.length}</span>
+    <div class="intro-block">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <span class="intro-label">ARP / Virtual Lab • Assignment Evaluation</span>
+          <h2>Knowledge Assessment</h2>
         </div>
-        <h2>Knowledge Assessment</h2>
-        <p>Answer each question to test your mastery of ARP protocol fundamentals, cache poisoning mechanics, and mitigation techniques.</p>
-        <div class="quiz-progress-track">
-          <div class="quiz-progress-fill" style="width:${progressPercent}%"></div>
+        <div class="flex items-center gap-2">
+          <span class="quiz-progress-badge">Question ${state.quizIndex + 1} of ${state.quizQuestions.length}</span>
+          <span class="quiz-score-pill">Score: <strong>${state.quizScore}</strong> / ${state.quizIndex + (state.quizAnswer !== null ? 1 : 0)}</span>
         </div>
       </div>
-      <div class="quiz-card">
-        <p class="quiz-question">${q.question}</p>
-        <div class="quiz-options">
-          ${q.options.map((opt, idx) => `
-            <button class="quiz-option" data-idx="${idx}" ${state.quizAnswer !== null ? 'disabled' : ''}
-              style="${state.quizAnswer === idx
-                ? idx === q.correctIndex
-                  ? 'background:#EBF7F4;border:1.5px solid #2A8C76;color:#1B6554;'
-                  : 'background:#FDF0EF;border:1.5px solid #E06C62;color:#B91C1C;'
-                : ''}">
-              <span class="quiz-opt-letter">${String.fromCharCode(65 + idx)}</span>
-              <span>${opt}</span>
-            </button>`).join('')}
+      <p>Select the single best answer for each question. Theoretical and RFC explanations will be revealed immediately upon selection.</p>
+      <div class="quiz-progress-track">
+        <div class="quiz-progress-fill" style="width:${progressPercent}%"></div>
+      </div>
+    </div>
+
+    <div class="quiz-active-grid">
+      <!-- Left Column: Question Card -->
+      <div class="quiz-main-card">
+        <div class="quiz-q-header">
+          <div class="quiz-q-tag">
+            <span class="quiz-q-num">Q${state.quizIndex + 1}</span>
+            <span class="quiz-q-type">Multiple Choice</span>
+          </div>
+          <span class="quiz-q-points">1 Point</span>
         </div>
+
+        <h3 class="quiz-question">${q.question}</h3>
+
+        <div class="quiz-options-list">
+          ${q.options.map((opt, idx) => {
+    let optClass = 'quiz-option';
+    if (state.quizAnswer !== null) {
+      if (idx === q.correctIndex) {
+        optClass += ' correct';
+      } else if (state.quizAnswer === idx) {
+        optClass += ' wrong';
+      } else {
+        optClass += ' disabled-unselected';
+      }
+    }
+    return `
+              <button class="${optClass}" data-idx="${idx}" ${state.quizAnswer !== null ? 'disabled' : ''}>
+                <span class="quiz-opt-letter">${String.fromCharCode(65 + idx)}</span>
+                <span class="quiz-opt-text">${opt}</span>
+                ${state.quizAnswer !== null && idx === q.correctIndex ? '<span class="opt-status-icon">✓</span>' : ''}
+                ${state.quizAnswer === idx && idx !== q.correctIndex ? '<span class="opt-status-icon">✕</span>' : ''}
+              </button>
+            `;
+  }).join('')}
+        </div>
+
         ${state.quizAnswer !== null ? `
-          <div class="quiz-explanation">
-            <strong style="color:${state.quizAnswer === q.correctIndex ? '#1B6554' : '#B91C1C'}">
-              ${state.quizAnswer === q.correctIndex ? '✓ Correct Answer!' : '✕ Incorrect'}
-            </strong>
-            <p style="margin-top:6px;line-height:1.6">${q.explanation}</p>
-            <button class="btn-primary-pill" id="quiz-next" style="margin-top:14px">Next question →</button>
-          </div>` : ''}
+          <div class="quiz-explanation ${state.quizAnswer === q.correctIndex ? 'exp-correct' : 'exp-wrong'}">
+            <div class="exp-header">
+              <div class="exp-icon">${state.quizAnswer === q.correctIndex ? '✓' : '✕'}</div>
+              <div>
+                <strong>${state.quizAnswer === q.correctIndex ? 'Correct Answer!' : 'Incorrect'}</strong>
+                <p class="exp-summary">${state.quizAnswer === q.correctIndex ? '+1 point earned' : `Correct choice: Option ${String.fromCharCode(65 + q.correctIndex)}`}</p>
+              </div>
+            </div>
+            <p class="exp-body">${q.explanation}</p>
+            <div class="exp-actions">
+              <button class="btn-primary-pill" id="quiz-next">
+                <span>${state.quizIndex + 1 < state.quizQuestions.length ? 'Next Question →' : 'View Final Results 🏁'}</span>
+              </button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Right Column: Sidebar Palette & Stats -->
+      <div class="quiz-sidebar">
+        <div class="quiz-sidebar-card">
+          <div class="sidebar-card-header">
+            <h4>Question Navigator</h4>
+            <span class="palette-counter">${state.quizIndex + 1} / ${state.quizQuestions.length}</span>
+          </div>
+          <div class="quiz-palette-grid">
+            ${state.quizQuestions.map((_, i) => {
+    let pillClass = 'palette-pill';
+    let icon = i + 1;
+    if (i === state.quizIndex) {
+      pillClass += ' current';
+    }
+    if (state.quizUserAnswers[i]) {
+      if (state.quizUserAnswers[i].isCorrect) {
+        pillClass += ' answered-correct';
+        icon = '✓';
+      } else {
+        pillClass += ' answered-wrong';
+        icon = '✕';
+      }
+    }
+    return `<div class="${pillClass}" title="Question ${i + 1}">${icon}</div>`;
+  }).join('')}
+          </div>
+          <div class="palette-legend">
+            <span class="legend-item"><span class="legend-dot dot-current"></span> Current</span>
+            <span class="legend-item"><span class="legend-dot dot-correct"></span> Correct</span>
+            <span class="legend-item"><span class="legend-dot dot-wrong"></span> Wrong</span>
+            <span class="legend-item"><span class="legend-dot dot-pending"></span> Pending</span>
+          </div>
+        </div>
+
+        <div class="quiz-sidebar-card">
+          <div class="sidebar-card-header">
+            <h4>Session Overview</h4>
+          </div>
+          <div class="session-stats-list">
+            <div class="session-stat-row">
+              <span class="stat-label">Total Questions</span>
+              <span class="stat-value">${state.quizQuestions.length}</span>
+            </div>
+            <div class="session-stat-row">
+              <span class="stat-label">Answered</span>
+              <span class="stat-value">${state.quizIndex + (state.quizAnswer !== null ? 1 : 0)} / ${state.quizQuestions.length}</span>
+            </div>
+            <div class="session-stat-row">
+              <span class="stat-label">Current Score</span>
+              <span class="stat-value highlight-score">${state.quizScore}</span>
+            </div>
+          </div>
+          <button class="btn-secondary btn-full" id="quiz-abandon">↺ Restart Test</button>
+        </div>
       </div>
     </div>`;
 
   $$('.quiz-option', panel).forEach(btn => {
     btn.addEventListener('click', () => {
       if (state.quizAnswer !== null) return;
-      const idx = parseInt(btn.dataset.idx);
+      const idx = parseInt(btn.dataset.idx, 10);
       state.quizAnswer = idx;
-      if (idx === q.correctIndex) state.quizScore++;
+      const isCorrect = idx === q.correctIndex;
+      if (isCorrect) state.quizScore++;
+      state.quizUserAnswers[state.quizIndex] = {
+        selectedIndex: idx,
+        correctIndex: q.correctIndex,
+        isCorrect: isCorrect,
+        question: q.question,
+        options: q.options,
+        explanation: q.explanation
+      };
       renderQuiz();
     });
   });
@@ -2251,6 +2988,20 @@ function renderQuiz() {
       state.quizIndex++;
       state.quizAnswer = null;
       renderQuiz();
+    });
+  }
+
+  const abandonBtn = $('#quiz-abandon', panel);
+  if (abandonBtn) {
+    abandonBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to restart this test? Current progress will be reset.')) {
+        state.quizQuestions = [];
+        state.quizUserAnswers = [];
+        state.quizIndex = 0;
+        state.quizScore = 0;
+        state.quizAnswer = null;
+        renderQuiz();
+      }
     });
   }
 }
@@ -2389,16 +3140,16 @@ function buildUI() {
         </div>
         <div class="theory-grid">
           ${[
-            ['Layer 2 vs Layer 3', 'Ethernet frames require destination MAC addresses. When Host A transmits an IP packet to Host B on the same subnet, it must first resolve B’s physical MAC address using an ARP Request.'],
-            ['ARP Request / Reply', 'ARP Requests are broadcasted (dst ff:ff:ff:ff:ff:ff) asking "Who has IP X?". The rightful owner responds with a unicast ARP Reply stating "IP X is at MAC Y".'],
-            ['The ARP Cache', 'Operating systems cache learned IP-to-MAC associations for 30–120 seconds to prevent broadcast storms. Entries are mutable and continuously updated by incoming frames.'],
-            ['Lack of Authentication', 'Designed in 1982 for trusted academic LANs, ARP has zero cryptographic authentication. Any device on the subnet can claim ownership of any IP without proof.'],
-            ['Gratuitous ARP', 'Unsolicited ARP announcements update neighbors of IP/MAC changes (e.g. NIC failover). Attackers exploit this to silently overwrite remote caches without prior requests.'],
-            ['MITM vs DoS', 'In MITM, the attacker enables kernel IP forwarding to invisibly relay packets. In DoS, forwarding is disabled, causing all redirected packets to be silently dropped.'],
-            ['Static ARP Defense', 'Permanent IP-to-MAC bindings configured manually in the OS cache cannot be overwritten by incoming forged ARP replies, though manual deployment does not scale easily.'],
-            ['Dynamic ARP Inspection', 'Enterprise switches with DAI validate incoming ARP packets against the DHCP Snooping Binding Table, dropping forged packets at the physical switch-port level.'],
-            ['HTTPS / VPN Protections', 'ARP poisoning is a Layer 2 attack. End-to-end encryption (TLS/HTTPS, VPN tunnels) ensures that even if traffic flows through an attacker, the payload remains unreadable ciphertext.']
-          ].map(([title, text]) => `
+      ['Layer 2 vs Layer 3', 'Ethernet frames require destination MAC addresses. When Host A transmits an IP packet to Host B on the same subnet, it must first resolve B’s physical MAC address using an ARP Request.'],
+      ['ARP Request / Reply', 'ARP Requests are broadcasted (dst ff:ff:ff:ff:ff:ff) asking "Who has IP X?". The rightful owner responds with a unicast ARP Reply stating "IP X is at MAC Y".'],
+      ['The ARP Cache', 'Operating systems cache learned IP-to-MAC associations for 30–120 seconds to prevent broadcast storms. Entries are mutable and continuously updated by incoming frames.'],
+      ['Lack of Authentication', 'Designed in 1982 for trusted academic LANs, ARP has zero cryptographic authentication. Any device on the subnet can claim ownership of any IP without proof.'],
+      ['Gratuitous ARP', 'Unsolicited ARP announcements update neighbors of IP/MAC changes (e.g. NIC failover). Attackers exploit this to silently overwrite remote caches without prior requests.'],
+      ['MITM vs DoS', 'In MITM, the attacker enables kernel IP forwarding to invisibly relay packets. In DoS, forwarding is disabled, causing all redirected packets to be silently dropped.'],
+      ['Static ARP Defense', 'Permanent IP-to-MAC bindings configured manually in the OS cache cannot be overwritten by incoming forged ARP replies, though manual deployment does not scale easily.'],
+      ['Dynamic ARP Inspection', 'Enterprise switches with DAI validate incoming ARP packets against the DHCP Snooping Binding Table, dropping forged packets at the physical switch-port level.'],
+      ['HTTPS / VPN Protections', 'ARP poisoning is a Layer 2 attack. End-to-end encryption (TLS/HTTPS, VPN tunnels) ensures that even if traffic flows through an attacker, the payload remains unreadable ciphertext.']
+    ].map(([title, text]) => `
             <div class="theory-card">
               <p class="theory-title">${title}</p>
               <p>${text}</p>
@@ -2650,7 +3401,7 @@ function buildUI() {
             <fieldset style="border:none">
               <legend style="font-size:13.5px;font-weight:600;color:var(--text-main);margin-bottom:10px">Overall Rating</legend>
               <div class="rating-row">
-                ${[1,2,3,4,5].map(v => `
+                ${[1, 2, 3, 4, 5].map(v => `
                   <button class="rating-btn" data-v="${v}" aria-label="${v} stars" type="button">${v}</button>`).join('')}
               </div>
             </fieldset>
@@ -2702,10 +3453,10 @@ function wireEvents() {
   });
 
   /* API buttons */
-  $('#btn-start-lab').addEventListener('click',   () => callApi('/api/lab/start'));
-  $('#btn-stop-lab').addEventListener('click',    () => callApi('/api/lab/stop'));
-  $('#btn-reset-lab').addEventListener('click',   () => callApi('/api/lab/reset'));
-  $('#btn-start-attack').addEventListener('click',() => callApi('/api/attack/start', { mode: state.attackMode }));
+  $('#btn-start-lab').addEventListener('click', () => callApi('/api/lab/start'));
+  $('#btn-stop-lab').addEventListener('click', () => callApi('/api/lab/stop'));
+  $('#btn-reset-lab').addEventListener('click', () => callApi('/api/lab/reset'));
+  $('#btn-start-attack').addEventListener('click', () => callApi('/api/attack/start', { mode: state.attackMode }));
   $('#btn-stop-attack').addEventListener('click', () => callApi('/api/attack/stop'));
 
   /* Mitigation toggle */
@@ -2726,7 +3477,7 @@ function wireEvents() {
   document.addEventListener('click', (e) => {
     if (e.target.id !== 'feedback-submit') return;
     const panel = $('#panel-Feedback');
-    const card  = panel.querySelector('.feedback-card');
+    const card = panel.querySelector('.feedback-card');
     if (card) card.innerHTML = `<p class="success-msg">Thank you for your feedback.</p>`;
     state.feedbackSubmitted = true;
   });
