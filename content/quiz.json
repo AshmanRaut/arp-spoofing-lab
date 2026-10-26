@@ -1,112 +1,1157 @@
 [
   {
-    "question": "Which protocol is responsible for resolving an IP address to a MAC address on a local area network?",
+    "question": "A host knows a same-LAN destination IP but not its hardware address. What should happen next?",
     "options": [
-      "DNS (Domain Name System)",
-      "ARP (Address Resolution Protocol)",
-      "DHCP (Dynamic Host Configuration Protocol)",
-      "ICMP (Internet Control Message Protocol)"
+      "The host broadcasts an ARP Request for that IP",
+      "The host routes using the destination MAC as an IP",
+      "The host encrypts the frame with ARP",
+      "DNS supplies a MAC"
     ],
-    "correctIndex": 1,
-    "explanation": "ARP (Address Resolution Protocol) operates at the Layer 2/3 boundary and resolves IP addresses to MAC addresses on a local network segment. DNS resolves hostnames to IPs; DHCP assigns IP configurations; ICMP handles error reporting and diagnostics."
+    "correctIndex": 0,
+    "explanation": "ARP resolves a local IP to a MAC so an Ethernet frame can be addressed."
   },
   {
-    "question": "At which OSI layer does ARP Cache Poisoning primarily operate?",
+    "question": "A frame uses a MAC address while its packet carries an IP address. Which distinction explains this?",
     "options": [
-      "Layer 3 — Network",
-      "Layer 4 — Transport",
-      "Layer 2 — Data Link",
-      "Layer 7 — Application"
+      "Layer 2 delivers local frames; Layer 3 routes using IPs",
+      "Layer 2 routes between networks; Layer 3 identifies NICs",
+      "Both layers use MAC addresses",
+      "MAC addresses are logical and IPs are physical"
+    ],
+    "correctIndex": 0,
+    "explanation": "The theory assigns local delivery to Layer 2 and inter-network routing to Layer 3."
+  },
+  {
+    "question": "A victim broadcasts 'Who has 10.10.10.1?' Which normal exchange follows?",
+    "options": [
+      "Two encrypted broadcasts",
+      "Unicast request, broadcast reply",
+      "Broadcast request, unicast reply to the victim",
+      "Unicast request and reply to the attacker"
     ],
     "correctIndex": 2,
-    "explanation": "ARP poisoning is a Layer 2 (Data Link) attack because it manipulates MAC-address-to-IP mappings used by the Ethernet/switching layer. It exploits the lack of authentication in the ARP protocol, which lives at the Data Link layer boundary."
+    "explanation": "ARP Requests use the broadcast MAC; the owner sends a unicast Reply to the requester."
   },
   {
-    "question": "What is a Gratuitous ARP?",
+    "question": "A host receives an ARP Reply without asking first. What is the precise implication?",
     "options": [
-      "An ARP Request broadcasted when a device first joins the network",
-      "An ARP Reply sent without a preceding ARP Request, announcing a device's own IP-to-MAC mapping",
-      "A special ARP message used only by routers to maintain routing tables",
-      "An encrypted ARP packet used in secure networks"
+      "It is necessarily DHCP",
+      "Its IP has changed",
+      "It must reject it",
+      "Its cache may update, but the sender's honesty is unproven"
     ],
-    "correctIndex": 1,
-    "explanation": "A Gratuitous ARP is an ARP Reply sent unprompted — without any preceding ARP Request. Devices use it legitimately to detect IP conflicts or announce a MAC address change. Attackers exploit it to silently overwrite other devices' ARP caches."
+    "correctIndex": 3,
+    "explanation": "Hosts update caches from ARP packets even without a request, which creates the trust weakness."
   },
   {
-    "question": "Why is the ARP protocol inherently vulnerable to spoofing attacks?",
+    "question": "A dynamic ARP entry disappears after a long idle period. Which explanation fits the theory?",
     "options": [
-      "ARP packets are too large for typical network buffers",
-      "ARP uses UDP which is unreliable",
-      "ARP has no cryptographic authentication; any device can claim any IP-to-MAC mapping",
-      "ARP entries are stored permanently and can never be updated"
+      "MACs expire every millisecond",
+      "Entries are permanent",
+      "The IP became a MAC",
+      "Entries typically expire after 30-120 seconds"
     ],
-    "correctIndex": 2,
-    "explanation": "ARP was designed in 1982 for trusted small LANs and includes no authentication mechanism. Any host on the network can broadcast an ARP Reply claiming any IP address, and all other hosts will accept and cache the mapping without verification."
+    "correctIndex": 3,
+    "explanation": "Dynamic ARP cache entries are short-lived and OS-dependent."
   },
   {
-    "question": "Scenario: You examine the ARP table on a victim machine (10.10.10.10) and find that both 10.10.10.1 (gateway) and 10.10.10.66 (attacker) resolve to the same MAC address: 02:42:ac:0a:0a:42. What has most likely happened?",
+    "question": "Why can a forged ARP Reply be accepted without proving IP ownership?",
     "options": [
-      "The gateway and attacker share a network interface (normal behavior)",
-      "The victim has manually configured a static ARP entry",
-      "An ARP Cache Poisoning attack has caused the attacker's MAC to be associated with the gateway's IP",
-      "The DHCP server assigned the same IP to two devices"
+      "ARP lacks authentication, identity verification, sequence numbers, and challenge-response",
+      "DHCP signs every reply",
+      "DNS verifies every MAC",
+      "MACs cannot be forged"
     ],
-    "correctIndex": 2,
-    "explanation": "When two different IP addresses resolve to the same MAC address in an ARP table, it strongly indicates ARP poisoning. The attacker sent forged ARP Replies claiming to be the gateway, so the victim's traffic destined for 10.10.10.1 is now delivered to the attacker's NIC."
+    "correctIndex": 0,
+    "explanation": "ARP was designed for trusted LANs and has no cryptographic authentication."
   },
   {
-    "question": "In a Man-in-the-Middle ARP attack, what must the attacker do to avoid disrupting the victim's connectivity while intercepting traffic?",
+    "question": "A capture shows an unsolicited claim that the gateway IP is at the attacker's MAC. What does it prove?",
     "options": [
-      "Disable the victim's network interface",
-      "Enable IP forwarding on the attacker's machine so intercepted packets are relayed to the real destination",
-      "Block all ARP traffic on the network segment",
-      "Assign itself the gateway's IP address permanently"
-    ],
-    "correctIndex": 1,
-    "explanation": "In MITM mode, the attacker enables IP forwarding. Packets from the victim arrive at the attacker's NIC (because the victim's ARP cache says the gateway's IP = attacker's MAC), the attacker inspects or modifies them, then forwards them to the real gateway — keeping the connection alive while performing interception."
-  },
-  {
-    "question": "Scenario: After an ARP poisoning attack begins, the victim can no longer reach any external websites, and all pings to the gateway time out. The attacker's machine is NOT forwarding any packets. What type of attack is this?",
-    "options": [
-      "Man-in-the-Middle (MITM) attack",
-      "Denial of Service (DoS) via ARP poisoning",
-      "DNS Hijacking",
-      "Port Scan"
-    ],
-    "correctIndex": 1,
-    "explanation": "When an ARP poisoning attack is configured with IP forwarding disabled (or packets actively dropped), the victim's traffic is redirected to the attacker but never forwarded to the real gateway. This results in a Denial of Service — the victim loses all network connectivity — rather than silent interception."
-  },
-  {
-    "question": "Which defensive technique involves a managed switch validating ARP packets against a trusted DHCP binding table and dropping those that don't match?",
-    "options": [
-      "Static ARP entries",
-      "Port Security",
-      "Dynamic ARP Inspection (DAI)",
-      "802.1X Network Access Control"
+      "The gateway is offline",
+      "Forwarding is active",
+      "A gratuitous ARP was sent; successful MITM is not proven",
+      "HTTPS was decrypted"
     ],
     "correctIndex": 2,
-    "explanation": "Dynamic ARP Inspection (DAI) is a Cisco/managed-switch feature that inspects every ARP packet on untrusted switch ports. It cross-references the claimed IP-MAC pair against the DHCP Snooping Binding Table. Mismatches are dropped and logged, effectively preventing ARP poisoning at the switch level."
+    "explanation": "An unsolicited Reply is gratuitous ARP; cache state and forwarding require separate evidence."
   },
   {
-    "question": "An attacker successfully executes an ARP Cache Poisoning MITM attack and intercepts all traffic between a victim and their bank's website. The bank uses HTTPS with a valid TLS certificate. What data can the attacker realistically read?",
+    "question": "A gateway's NIC changes legitimately. How can it announce the new mapping?",
     "options": [
-      "Full plaintext usernames, passwords, and account numbers",
-      "Only the victim's IP and MAC address",
-      "Only the hostname of the bank's website (via SNI) and encrypted ciphertext — not the payload content",
-      "Nothing at all, since ARP operates below the network layer"
+      "Use DNS to rewrite frames",
+      "Disable all ARP",
+      "Send a gratuitous ARP for its own IP and new MAC",
+      "Change every host's IP"
     ],
     "correctIndex": 2,
-    "explanation": "HTTPS/TLS encrypts the payload end-to-end. Even positioned in-path via ARP poisoning, the attacker only sees encrypted ciphertext and possibly the Server Name Indication (SNI) field in the TLS handshake. Without the server's private key, the attacker cannot decrypt the content. The attack still allows traffic analysis and potential SSL-stripping (which the user's browser should warn about)."
+    "explanation": "Legitimate gratuitous ARP use includes announcing a MAC change."
   },
   {
-    "question": "How does adding a static ARP entry on the victim protect against ARP Cache Poisoning?",
+    "question": "A victim maps both gateway IP and attacker IP to one MAC. What is the strongest inference?",
     "options": [
-      "It encrypts all ARP traffic leaving the victim",
-      "It permanently binds an IP address to a specific MAC in the victim's ARP table, so incoming forged ARP Replies cannot overwrite it",
-      "It prevents the victim from receiving any ARP broadcast packets",
-      "It notifies the network administrator whenever an ARP Reply is received"
+      "The victim likely accepted a forged gateway-to-attacker mapping",
+      "DHCP duplicated an IP",
+      "Both entries are static",
+      "They share one NIC"
+    ],
+    "correctIndex": 0,
+    "explanation": "The pattern strongly indicates poisoning, but the table is not proof of every attack outcome."
+  },
+  {
+    "question": "The victim's gateway mapping is poisoned, but the gateway's victim mapping is unchanged. What is not established?",
+    "options": [
+      "Victim frames can be redirected",
+      "A complete bidirectional MITM",
+      "The attacker can receive some frames",
+      "The victim cache changed"
     ],
     "correctIndex": 1,
-    "explanation": "A static ARP entry is a manually configured, permanent IP-to-MAC binding that the operating system treats as authoritative. Unlike dynamic entries, static entries are not overwritten when forged ARP Replies arrive, making ARP poisoning ineffective for those specific entries. The limitation is that static entries must be configured on every device and updated whenever a MAC address changes."
+    "explanation": "The gateway side must also be poisoned for return traffic to use the attacker MAC."
+  },
+  {
+    "question": "Both caches map the other host to the attacker's MAC. What path is expected?",
+    "options": [
+      "Only DNS reaches the attacker",
+      "Direct victim-gateway traffic",
+      "Victim-to-attacker and gateway-to-attacker frames",
+      "Only broadcasts"
+    ],
+    "correctIndex": 2,
+    "explanation": "Poisoning both mappings redirects both directions at Ethernet delivery."
+  },
+  {
+    "question": "Why does an attacker resend forged Replies periodically?",
+    "options": [
+      "The attacker must change MACs",
+      "It turns IP into DNS",
+      "Dynamic entries can expire and legitimate mappings can return",
+      "ARP requires a password every two seconds"
+    ],
+    "correctIndex": 2,
+    "explanation": "Repeated poisoning counters normal cache expiry."
+  },
+  {
+    "question": "The victim's gateway mapping is false but web access continues. What is most likely?",
+    "options": [
+      "It must be DoS",
+      "The gateway became the attacker",
+      "ARP stopped",
+      "The attacker is forwarding; cache evidence alone does not prove readable payloads"
+    ],
+    "correctIndex": 3,
+    "explanation": "Forwarding explains continuity; encryption and capture evidence determine content visibility."
+  },
+  {
+    "question": "Both sides are poisoned, but communication fails. Which distinction explains this?",
+    "options": [
+      "Redirecting traffic and forwarding traffic differ; dropping creates DoS",
+      "HTTPS always causes DoS",
+      "Gratuitous ARP encrypts traffic",
+      "Layer 3 prevents ARP effects"
+    ],
+    "correctIndex": 0,
+    "explanation": "Poisoning redirects packets; IP forwarding determines whether they continue."
+  },
+  {
+    "question": "What result is intended when the attacker enables IP forwarding after poisoning?",
+    "options": [
+      "Automatic static entries",
+      "Transparent MITM with traffic relayed after interception",
+      "A cache repair",
+      "A broadcast-only exchange"
+    ],
+    "correctIndex": 1,
+    "explanation": "Forwarding creates the Victim -> Attacker -> Gateway path."
+  },
+  {
+    "question": "What is the direct outcome when forwarding is disabled but poisoning remains active?",
+    "options": [
+      "ARP becomes authenticated",
+      "The gateway cache is repaired",
+      "Redirected packets can be dropped, causing DoS",
+      "HTTPS becomes plaintext"
+    ],
+    "correctIndex": 2,
+    "explanation": "Without forwarding, redirected traffic is blackholed rather than relayed."
+  },
+  {
+    "question": "A user says the connection still works during poisoning. What cannot be inferred?",
+    "options": [
+      "Some frames may reach the attacker",
+      "The attacker can read valid HTTPS payloads",
+      "The attack is not currently a total DoS",
+      "Forwarding may be active"
+    ],
+    "correctIndex": 1,
+    "explanation": "HTTPS can keep content encrypted even when an attacker is in path."
+  },
+  {
+    "question": "A capture shows the attacker receiving victim frames but no onward packets. What remains unresolved?",
+    "options": [
+      "Whether the attacker forwards them to the gateway",
+      "Whether Ethernet uses MACs",
+      "Whether ARP contains IPs",
+      "Whether the victim has an IP"
+    ],
+    "correctIndex": 0,
+    "explanation": "Receiving redirected frames does not reveal the forwarding decision."
+  },
+  {
+    "question": "Which comparison between MITM and DoS is correct?",
+    "options": [
+      "They are identical",
+      "MITM forwards after interception; DoS drops or fails to forward",
+      "MITM needs static ARP; DoS needs HTTPS",
+      "MITM changes DNS; DoS changes IPs"
+    ],
+    "correctIndex": 1,
+    "explanation": "Forwarding is the operational distinction in the theory."
+  },
+  {
+    "question": "A static entry binds the gateway IP to its known MAC. What does it directly resist?",
+    "options": [
+      "All packet modification",
+      "A compromised gateway",
+      "A received forged Reply overwriting that mapping",
+      "The attacker's physical presence"
+    ],
+    "correctIndex": 2,
+    "explanation": "Static entries are authoritative and are not overwritten by received ARP packets."
+  },
+  {
+    "question": "What is the main trade-off of static ARP?",
+    "options": [
+      "Automatic scaling through DHCP",
+      "Central switch validation",
+      "Payload encryption",
+      "Manual configuration on every device and updates after MAC changes"
+    ],
+    "correctIndex": 3,
+    "explanation": "Static entries are impractical at scale and require maintenance."
+  },
+  {
+    "question": "A victim has a static gateway entry. Which claim is too strong?",
+    "options": [
+      "The overwrite is blocked",
+      "The attacker cannot be on the LAN",
+      "The mapping is manually fixed",
+      "A legitimate MAC change needs an update"
+    ],
+    "correctIndex": 1,
+    "explanation": "Static ARP protects the mapping, not the physical network or every other threat."
+  },
+  {
+    "question": "A gateway NIC is replaced but its IP stays constant. What can a stale static entry cause?",
+    "options": [
+      "DAI rewrites the host entry",
+      "Hosts keep using the old MAC until it is updated",
+      "The new MAC is authenticated automatically",
+      "The IP becomes broadcast"
+    ],
+    "correctIndex": 1,
+    "explanation": "Permanent entries do not adapt automatically to hardware changes."
+  },
+  {
+    "question": "Why does a static entry on the victim not protect the gateway's cache?",
+    "options": [
+      "The gateway has no MAC",
+      "Victim entries forward packets",
+      "Each device maintains its own ARP cache",
+      "Static entries live only in DNS"
+    ],
+    "correctIndex": 2,
+    "explanation": "One host's cache configuration does not configure another host."
+  },
+  {
+    "question": "A switch checks an ARP claim against a DHCP Snooping Binding Table and drops mismatches. What is this?",
+    "options": [
+      "Port security only",
+      "HTTPS",
+      "Gratuitous ARP",
+      "Dynamic ARP Inspection"
+    ],
+    "correctIndex": 3,
+    "explanation": "DAI validates IP-MAC-port claims against trusted bindings."
+  },
+  {
+    "question": "A binding expects IP V and MAC M on port P, but a frame on P claims a different IP and MAC. What should DAI do?",
+    "options": [
+      "Allow it because ARP is trusted",
+      "Drop and log the violation",
+      "Encrypt and forward it",
+      "Convert it to DNS"
+    ],
+    "correctIndex": 1,
+    "explanation": "A binding mismatch is dropped and logged."
+  },
+  {
+    "question": "What does DAI add that a host-only static entry does not?",
+    "options": [
+      "A new victim IP",
+      "Switch-level validation across protected ports",
+      "End-to-end encryption",
+      "A replacement for forwarding"
+    ],
+    "correctIndex": 1,
+    "explanation": "DAI enforces mappings centrally at a managed Layer 2 switch."
+  },
+  {
+    "question": "DAI has an incorrect binding for a legitimate host. What trade-off follows?",
+    "options": [
+      "The host gains two MACs",
+      "The attacker becomes gateway",
+      "A valid claim may be dropped as a mismatch",
+      "HTTPS decrypts"
+    ],
+    "correctIndex": 2,
+    "explanation": "DAI depends on accurate trusted bindings."
+  },
+  {
+    "question": "Which limitation distinguishes port security from DAI?",
+    "options": [
+      "Port security encrypts ARP",
+      "Port security is Layer 7",
+      "Port security needs no switch",
+      "Port security limits MAC addresses but does not directly validate ARP IP-MAC claims"
+    ],
+    "correctIndex": 3,
+    "explanation": "Port security constrains MAC use; DAI inspects ARP claims."
+  },
+  {
+    "question": "An attacker uses one permitted MAC but claims the gateway IP. Which defense targets that claim?",
+    "options": [
+      "DAI",
+      "Port security alone",
+      "HTTPS alone",
+      "VPN alone"
+    ],
+    "correctIndex": 0,
+    "explanation": "A permitted MAC does not make its IP claim valid; DAI checks the binding."
+  },
+  {
+    "question": "A switch shuts a port after too many MACs appear. What is justified?",
+    "options": [
+      "The victim entry is static",
+      "A port-security policy violation occurred, not necessarily ARP poisoning",
+      "DAI proved the forged IP",
+      "HTTPS was broken"
+    ],
+    "correctIndex": 1,
+    "explanation": "Port security evidence concerns MAC policy, not the precise ARP claim."
+  },
+  {
+    "question": "Valid HTTPS is used while the attacker forwards traffic. What can the attacker read?",
+    "options": [
+      "Nothing because ARP is Layer 2",
+      "The bank's content can be forged silently",
+      "Ciphertext, not protected payload without the server private key",
+      "Plaintext passwords automatically"
+    ],
+    "correctIndex": 2,
+    "explanation": "TLS protects content even when underlying frames are redirected."
+  },
+  {
+    "question": "Which observation most directly indicates attempted HTTPS interception?",
+    "options": [
+      "A normal unicast ARP Reply",
+      "An expired ARP entry",
+      "A port allowing one MAC",
+      "A certificate warning from substitution or SSL stripping"
+    ],
+    "correctIndex": 3,
+    "explanation": "Certificate validation can alert the user to substitution or stripping."
+  },
+  {
+    "question": "The attacker sees a TLS ClientHello and encrypted records. What is safest?",
+    "options": [
+      "Traffic is in path but the payload remains protected",
+      "The attacker has the private key",
+      "The connection is HTTP",
+      "The ARP cache is unchanged"
+    ],
+    "correctIndex": 0,
+    "explanation": "In-path position does not defeat TLS encryption."
+  },
+  {
+    "question": "A VPN tunnel exists before poisoning. What does poisoning most plausibly change?",
+    "options": [
+      "The MAC becomes a DNS name",
+      "Tunnel frames may pass through the attacker while payload remains encrypted",
+      "The attacker can read all payloads",
+      "The VPN prevents all Layer 2 redirection"
+    ],
+    "correctIndex": 1,
+    "explanation": "VPN limits content exposure but does not stop local redirection."
+  },
+  {
+    "question": "Which comparison between HTTPS/VPN and static ARP is correct?",
+    "options": [
+      "Static ARP encrypts payloads",
+      "Neither addresses the weakness",
+      "Encryption limits reading; static ARP helps prevent mapping changes",
+      "Both only detect port violations"
+    ],
+    "correctIndex": 2,
+    "explanation": "They mitigate different stages: confidentiality versus mapping integrity."
+  },
+  {
+    "question": "SSH reports a host-key mismatch during redirection. What does that provide?",
+    "options": [
+      "Automatic cache restoration",
+      "Plaintext for the attacker",
+      "A DAI binding",
+      "Evidence of a possible interception attempt"
+    ],
+    "correctIndex": 3,
+    "explanation": "SSH fingerprint verification is an interception warning, not an ARP repair."
+  },
+  {
+    "question": "An attacker redirects a VPN tunnel but cannot decrypt it. What remains possible?",
+    "options": [
+      "Disruption or traffic analysis despite limited payload access",
+      "Automatic plaintext reading",
+      "Authentication of forged ARP",
+      "Changing a static entry"
+    ],
+    "correctIndex": 0,
+    "explanation": "Encryption limits confidentiality impact, not necessarily availability or metadata exposure."
+  },
+  {
+    "question": "Why can ARP matter when the destination IP is outside the local network?",
+    "options": [
+      "IP is replaced end to end by MAC",
+      "The victim needs the gateway's local MAC for the next-hop frame",
+      "ARP routes across the internet",
+      "The remote MAC is broadcast"
+    ],
+    "correctIndex": 1,
+    "explanation": "The local Ethernet frame targets the gateway even for remote Layer 3 destinations."
+  },
+  {
+    "question": "A student says poisoning changes the gateway's IP address. What is the correction?",
+    "options": [
+      "It changes DNS names",
+      "It cannot affect frames",
+      "It changes a cached IP-to-MAC association, not necessarily the gateway configuration",
+      "It changes every Layer 3 address"
+    ],
+    "correctIndex": 2,
+    "explanation": "The forged association affects local delivery while configured IPs may remain unchanged."
+  },
+  {
+    "question": "A forged Reply claims the gateway IP at the attacker's MAC. What is abused?",
+    "options": [
+      "DNS name resolution",
+      "TCP port ownership",
+      "The VPN fingerprint",
+      "The receiver's trusted IP-to-MAC cache mapping"
+    ],
+    "correctIndex": 3,
+    "explanation": "ARP populates the mapping that Ethernet delivery consults."
+  },
+  {
+    "question": "Why does a unicast ARP Reply not become authenticated merely because it is unicast?",
+    "options": [
+      "Delivery mode does not prove the sender owns the claimed IP",
+      "Unicast is always encrypted",
+      "Only broadcasts can be forged",
+      "The switch signs unicast packets"
+    ],
+    "correctIndex": 0,
+    "explanation": "Addressing and authenticity are separate properties."
+  },
+  {
+    "question": "Two different ARP Replies claim the same IP. What should not be concluded without more evidence?",
+    "options": [
+      "Cache state needs inspection",
+      "One is definitely legitimate and the other caused a successful MITM",
+      "Conflicting claims exist",
+      "ARP permits ambiguity"
+    ],
+    "correctIndex": 1,
+    "explanation": "The capture does not show which mapping was accepted or whether forwarding occurred."
+  },
+  {
+    "question": "What feature do legitimate and malicious gratuitous ARPs share?",
+    "options": [
+      "They are router-only",
+      "They disable forwarding",
+      "They are unsolicited Replies; intent and mapping determine use",
+      "They are encrypted"
+    ],
+    "correctIndex": 2,
+    "explanation": "Gratuitous describes the unsolicited form, which has both legitimate and malicious uses."
+  },
+  {
+    "question": "An unsolicited claim is accepted and later frames target the attacker MAC. What causal chain fits?",
+    "options": [
+      "DNS selected the MAC",
+      "The gateway changed its IP",
+      "DAI necessarily approved it",
+      "Unverified ARP updated the cache, which selected the MAC for local delivery"
+    ],
+    "correctIndex": 3,
+    "explanation": "The cache's trust model controls later Ethernet frame destinations."
+  },
+  {
+    "question": "If a cache is corrected but forged Replies continue, what determines persistence?",
+    "options": [
+      "Whether forged traffic is accepted again before legitimate replacement or expiry",
+      "Whether HTTPS is enabled",
+      "Whether DNS exists",
+      "Whether MACs are 48-bit"
+    ],
+    "correctIndex": 0,
+    "explanation": "The unprotected dynamic mapping can be overwritten repeatedly."
+  },
+  {
+    "question": "Which evidence is strongest for poisoning rather than merely a suspicious packet?",
+    "options": [
+      "An unrelated static entry",
+      "The victim cache maps the gateway to the attacker and traffic follows that path",
+      "One unsolicited packet alone",
+      "A valid certificate"
+    ],
+    "correctIndex": 1,
+    "explanation": "Correlating the claim, cache, and traffic path is stronger than one packet."
+  },
+  {
+    "question": "Forged Replies repeat, but the victim still uses the real MAC. What is safest?",
+    "options": [
+      "Gateway forwarding is proven",
+      "The cache is static",
+      "Sending poison is shown, but successful overwrite is not",
+      "MITM is proven"
+    ],
+    "correctIndex": 2,
+    "explanation": "Transmission of poison and acceptance of poison are separate facts."
+  },
+  {
+    "question": "The victim sends frames to the attacker MAC, but no capture shows onward traffic. What would distinguish MITM from misconfiguration?",
+    "options": [
+      "The victim hostname",
+      "The gateway DNS record",
+      "MAC length",
+      "Evidence that the attacker forwards to the real gateway"
+    ],
+    "correctIndex": 3,
+    "explanation": "Forwarding establishes the intended interception path."
+  },
+  {
+    "question": "The attacker poisons only the gateway side. Which traffic is most directly redirected?",
+    "options": [
+      "Gateway-to-victim frames",
+      "Victim-to-gateway frames",
+      "All broadcasts into VPN plaintext",
+      "Only internet DNS"
+    ],
+    "correctIndex": 0,
+    "explanation": "The gateway's cache controls its outgoing victim-bound frame destination."
+  },
+  {
+    "question": "The attacker poisons only the victim side and sees no replies. What explains this?",
+    "options": [
+      "DAI forwarded everything",
+      "The gateway may still address replies directly to the victim",
+      "The victim IP became a MAC",
+      "HTTPS blocked ARP"
+    ],
+    "correctIndex": 1,
+    "explanation": "Bidirectional MITM requires both caches to be altered."
+  },
+  {
+    "question": "Why is the gateway a critical target for the victim's off-LAN traffic?",
+    "options": [
+      "It authenticates ARP",
+      "It is an application server",
+      "It is the local next hop whose MAC controls the victim's external frames",
+      "It owns every remote MAC"
+    ],
+    "correctIndex": 2,
+    "explanation": "The gateway's local mapping determines the Ethernet destination for routed traffic."
+  },
+  {
+    "question": "A victim can ping the gateway after poisoning while forwarding is off. What is safest?",
+    "options": [
+      "Full MITM is proven",
+      "DAI is proven",
+      "HTTPS decrypted ping",
+      "That observation alone does not disprove poisoning or establish forwarding"
+    ],
+    "correctIndex": 3,
+    "explanation": "A single connectivity observation does not establish the complete path."
+  },
+  {
+    "question": "Which ARP delivery statement is correct?",
+    "options": [
+      "Requests are broadcast; normal Replies are unicast",
+      "Requests are unicast; Replies are broadcast",
+      "Both are Layer 3 broadcasts",
+      "Neither uses MACs"
+    ],
+    "correctIndex": 0,
+    "explanation": "The request and reply delivery modes differ as described in the theory."
+  },
+  {
+    "question": "If no host owns the requested IP, what follows from the normal ARP exchange?",
+    "options": [
+      "The switch creates a permanent entry",
+      "The described owner Reply will not occur; the request does not assign ownership",
+      "The attacker becomes owner automatically",
+      "DNS supplies the MAC"
+    ],
+    "correctIndex": 1,
+    "explanation": "A normal Reply comes from a host recognizing its own IP."
+  },
+  {
+    "question": "A MAC appears for two IPs. Why is that suspicious but not absolute proof?",
+    "options": [
+      "DHCP definitely duplicated an IP",
+      "The IPs must be on different LANs",
+      "It is consistent with poisoning, but a snapshot alone does not establish cause",
+      "ARP forbids any shared mapping"
+    ],
+    "correctIndex": 2,
+    "explanation": "The theory calls it a strong indicator, not conclusive proof in isolation."
+  },
+  {
+    "question": "Static ARP and DAI both resist forged mappings. Where do they act?",
+    "options": [
+      "Static ARP acts in DNS; DAI in HTTPS",
+      "Both act only in the attacker",
+      "Both are browser controls",
+      "Static ARP acts in a host cache; DAI acts at a managed switch"
+    ],
+    "correctIndex": 3,
+    "explanation": "Their enforcement points and scope differ."
+  },
+  {
+    "question": "Why might an enterprise prefer DAI to static entries for thousands of changing hosts?",
+    "options": [
+      "It centralizes validation against bindings instead of manual host configuration",
+      "It requires more manual entries",
+      "It encrypts payloads",
+      "Static entries learn faster"
+    ],
+    "correctIndex": 0,
+    "explanation": "DAI is designed for managed, scalable Layer 2 enforcement."
+  },
+  {
+    "question": "A defense blocks forged mappings but does not encrypt application data. Which category is it?",
+    "options": [
+      "Gratuitous ARP",
+      "Static ARP or DAI",
+      "HTTPS or VPN",
+      "IP forwarding"
+    ],
+    "correctIndex": 1,
+    "explanation": "Static ARP and DAI protect mapping integrity, not payload confidentiality."
+  },
+  {
+    "question": "A defense encrypts payloads but permits ARP redirection. What remains possible?",
+    "options": [
+      "The cache becomes static",
+      "ARP gains authentication",
+      "Redirection, disruption, or metadata observation while protected content stays unreadable",
+      "No frames reach the attacker"
+    ],
+    "correctIndex": 2,
+    "explanation": "Encryption limits content exposure without preventing Layer 2 redirection."
+  },
+  {
+    "question": "A DAI log records a dropped claim. What does it not prove?",
+    "options": [
+      "A binding mismatch was enforced",
+      "The ARP claim was rejected",
+      "A policy violation was recorded",
+      "That application data was exposed"
+    ],
+    "correctIndex": 3,
+    "explanation": "DAI evidence concerns ARP validation, not later traffic inspection."
+  },
+  {
+    "question": "Port security shuts a port after too many MACs appear. Why can this also affect legitimate users?",
+    "options": [
+      "A policy limit may be exceeded during legitimate hardware or failover changes",
+      "It decrypts traffic",
+      "It rewrites all caches",
+      "It guarantees IP-MAC correctness"
+    ],
+    "correctIndex": 0,
+    "explanation": "Port security limits MAC use and can require policy updates."
+  },
+  {
+    "question": "A report calls a changed victim cache 'MITM successful.' What important condition is missing?",
+    "options": [
+      "Evidence the request was broadcast",
+      "Evidence of forwarding if MITM means transparent interception",
+      "Evidence MACs are 48-bit",
+      "Evidence DNS exists"
+    ],
+    "correctIndex": 1,
+    "explanation": "A changed mapping redirects traffic; transparent MITM also needs forwarding."
+  },
+  {
+    "question": "Which observation most clearly supports DoS rather than MITM?",
+    "options": [
+      "HTTPS remains valid",
+      "The gateway sends a Reply",
+      "Frames reach the attacker but are not forwarded and connectivity fails",
+      "The victim reaches the gateway through the attacker"
+    ],
+    "correctIndex": 2,
+    "explanation": "Dropped redirected traffic is the defining DoS outcome."
+  },
+  {
+    "question": "No browser warning appears during suspected HTTPS interception. What should not be concluded?",
+    "options": [
+      "TLS may still protect content",
+      "Redirection and encryption differ",
+      "A valid certificate may remain valid",
+      "That poisoning did not happen or plaintext was readable"
+    ],
+    "correctIndex": 3,
+    "explanation": "No warning proves neither absence of Layer 2 redirection nor plaintext exposure."
+  },
+  {
+    "question": "A VPN loses connectivity during poisoning. Which interpretation is supported?",
+    "options": [
+      "The tunnel may be dropped or not forwarded; loss does not imply decryption",
+      "The attacker necessarily read it",
+      "VPN prevents ARP",
+      "The gateway IP changed"
+    ],
+    "correctIndex": 0,
+    "explanation": "VPN encryption limits confidentiality, while forwarding controls availability."
+  },
+  {
+    "question": "A certificate warning appears during suspected ARP interception. Which layers are being distinguished?",
+    "options": [
+      "Layer 2 authenticating certificates",
+      "Layer 2 redirection versus higher-layer TLS validation",
+      "Two physical layers",
+      "TLS changing MACs"
+    ],
+    "correctIndex": 1,
+    "explanation": "ARP can redirect while TLS validation detects certificate substitution."
+  },
+  {
+    "question": "An administrator can maintain one high-value host after hardware changes. Which defense fits?",
+    "options": [
+      "Attacker gratuitous ARP",
+      "Disabling HTTPS",
+      "A static ARP entry for the gateway",
+      "Port security without a switch"
+    ],
+    "correctIndex": 2,
+    "explanation": "Static ARP is practical for limited, controlled scope."
+  },
+  {
+    "question": "A managed switch has accurate DHCP bindings and many hosts. Which defense fits?",
+    "options": [
+      "A manual entry on every host",
+      "Plain HTTP",
+      "Disabling forwarding",
+      "DAI"
+    ],
+    "correctIndex": 3,
+    "explanation": "DAI uses trusted bindings for central validation."
+  },
+  {
+    "question": "Why are port security and DAI not interchangeable?",
+    "options": [
+      "Port security limits MAC addresses; DAI validates ARP IP-MAC claims",
+      "DAI only counts MACs",
+      "Both encrypt traffic",
+      "Neither logs violations"
+    ],
+    "correctIndex": 0,
+    "explanation": "Their control objectives differ."
+  },
+  {
+    "question": "An ARP Reply has the correct gateway IP but an unexpected MAC. What must be checked before calling it malicious?",
+    "options": [
+      "Whether DNS returned the IP",
+      "Whether the MAC is legitimate and whether the receiver accepted it",
+      "Whether HTTPS is enabled",
+      "Whether it is Layer 4"
+    ],
+    "correctIndex": 1,
+    "explanation": "Legitimate MAC changes and unsolicited announcements exist."
+  },
+  {
+    "question": "A failover sends a gratuitous ARP with a new MAC. Why is it not inherently poisoning?",
+    "options": [
+      "Failover is only Layer 3",
+      "Clients cannot update from Replies",
+      "The mapping may be a legitimate MAC-change announcement",
+      "All gratuitous ARP is malicious"
+    ],
+    "correctIndex": 2,
+    "explanation": "Gratuitous ARP has documented legitimate uses."
+  },
+  {
+    "question": "A cache changes immediately after an unsolicited claim. Which property enabled it?",
+    "options": [
+      "ARP entries never expire",
+      "DNS routes MACs",
+      "DAI signs every Reply",
+      "The OS updates from received ARP even without a request"
+    ],
+    "correctIndex": 3,
+    "explanation": "Unsolicited cache updates are the root of the vulnerability."
+  },
+  {
+    "question": "A poisoned victim cache is observed. Why does that not prove the gateway cache is poisoned?",
+    "options": [
+      "Each device has its own cache",
+      "Gateway caches are unused",
+      "Caches are globally shared",
+      "Only DAI can change them"
+    ],
+    "correctIndex": 0,
+    "explanation": "Both sides must be separately poisoned for bidirectional interception."
+  },
+  {
+    "question": "A poisoned gateway cache is observed. Why does that not prove victim traffic is intercepted?",
+    "options": [
+      "Port security must fail",
+      "Victim-side poisoning and a forwarding path are also needed",
+      "DNS is missing",
+      "A certificate key is missing"
+    ],
+    "correctIndex": 1,
+    "explanation": "Gateway-side poisoning redirects gateway replies, not necessarily victim-originated frames."
+  },
+  {
+    "question": "How can poisoning work without changing a host's configured IP?",
+    "options": [
+      "ARP edits DNS",
+      "MACs route globally",
+      "Ethernet delivery consults a false cached IP-to-MAC association",
+      "IP configuration is irrelevant"
+    ],
+    "correctIndex": 2,
+    "explanation": "The attack changes local frame destination, not necessarily Layer 3 configuration."
+  },
+  {
+    "question": "A capture pairs gateway IP with attacker MAC. What is safest?",
+    "options": [
+      "The attacker legally owns the gateway IP",
+      "DNS replied",
+      "TLS is broken",
+      "A forged identity claim is plausible; full MITM needs context and forwarding evidence"
+    ],
+    "correctIndex": 3,
+    "explanation": "The mismatch supports spoofing but does not prove every outcome."
+  },
+  {
+    "question": "A mapping reverts after poisoning stops. What explains this?",
+    "options": [
+      "The dynamic entry expired or was replaced by legitimate ARP information",
+      "Static entries are overwritten",
+      "HTTPS repaired it",
+      "VPN changed hardware"
+    ],
+    "correctIndex": 0,
+    "explanation": "Dynamic entries are short-lived and can be relearned."
+  },
+  {
+    "question": "A static entry remains wrong after a legitimate NIC replacement. What follows?",
+    "options": [
+      "The attacker caused the replacement",
+      "Availability may suffer until the administrator updates it",
+      "Static ARP discovers the MAC",
+      "DAI accepts the old entry"
+    ],
+    "correctIndex": 1,
+    "explanation": "Static protection trades adaptation for resistance to unsolicited changes."
+  },
+  {
+    "question": "Both-side poisoning uses forwarding enabled. What should the lab expect?",
+    "options": [
+      "Only ARP Requests pass",
+      "The gateway IP disappears",
+      "Traffic traverses the attacker while communication continues",
+      "All packets drop"
+    ],
+    "correctIndex": 2,
+    "explanation": "That is the MITM path in the theory."
+  },
+  {
+    "question": "The same poisoning uses forwarding disabled. What changes?",
+    "options": [
+      "ARP becomes authenticated",
+      "HTTPS becomes plaintext",
+      "Requests become unicast",
+      "Availability: redirected traffic is dropped, producing DoS"
+    ],
+    "correctIndex": 3,
+    "explanation": "Forwarding controls relay versus blackholing."
+  },
+  {
+    "question": "Which combination provides complementary mitigation?",
+    "options": [
+      "DAI or static ARP for mappings plus HTTPS/VPN for confidentiality",
+      "Port security alone for encryption",
+      "Gratuitous ARP plus HTTP",
+      "Disabling cache plus DNS"
+    ],
+    "correctIndex": 0,
+    "explanation": "Mapping controls and encryption address different risks."
+  },
+  {
+    "question": "Why is an inaccurate DAI binding table significant?",
+    "options": [
+      "Port security fixes the table",
+      "It can cause legitimate claims to be dropped as mismatches",
+      "DAI stops using ARP",
+      "HTTPS supplies bindings"
+    ],
+    "correctIndex": 1,
+    "explanation": "DAI's decision depends on trusted expected bindings."
+  },
+  {
+    "question": "HTTPS is used everywhere but ARP is unprotected. What risk remains?",
+    "options": [
+      "ARP becomes authenticated",
+      "Static entries appear automatically",
+      "Traffic can still be redirected, modified at the network level, or disrupted",
+      "TLS plaintext is always readable"
+    ],
+    "correctIndex": 2,
+    "explanation": "Encryption limits content exposure, not all redirection or availability effects."
+  },
+  {
+    "question": "DAI is enabled and an encrypted session is captured. Which statement is accurate?",
+    "options": [
+      "DAI decrypts it",
+      "DAI makes certificates unnecessary",
+      "DAI disables forwarding",
+      "DAI addresses ARP claims; it does not replace HTTPS/VPN confidentiality"
+    ],
+    "correctIndex": 3,
+    "explanation": "DAI and encryption solve different problems."
+  },
+  {
+    "question": "A false mapping immediately changes local frame delivery at which boundary?",
+    "options": [
+      "Layer 2, even though the claimed identity is a Layer 3 IP",
+      "Layer 7 only",
+      "The internet routing table",
+      "The DHCP database"
+    ],
+    "correctIndex": 0,
+    "explanation": "ARP bridges IP identity and Ethernet delivery."
+  },
+  {
+    "question": "Which summary best captures ARP's weakness?",
+    "options": [
+      "It authenticates gratuitous Replies",
+      "It trusts unauthenticated IP-to-MAC claims and updates short-lived caches",
+      "It encrypts too much",
+      "It stores mappings permanently"
+    ],
+    "correctIndex": 1,
+    "explanation": "This combines the core facts from the theory."
+  },
+  {
+    "question": "A new quiz attempt is started after completion. What should it do?",
+    "options": [
+      "Change the theory",
+      "Score against all 100",
+      "Select a fresh random subset and reshuffle options",
+      "Repeat the same ten in the same order"
+    ],
+    "correctIndex": 2,
+    "explanation": "Each attempt must generate a fresh test while scoring only its selected questions."
+  },
+  {
+    "question": "A correct option moves from index 2 to index 0 during option shuffling. What must change?",
+    "options": [
+      "It must remain 2",
+      "All options become correct",
+      "The question's bank position changes",
+      "correctIndex must become 0"
+    ],
+    "correctIndex": 3,
+    "explanation": "The answer index must track the shuffled option."
+  },
+  {
+    "question": "A 20-question test is sampled from a 100-question bank. What selection is required?",
+    "options": [
+      "Twenty distinct bank entries",
+      "One entry repeated twenty times",
+      "All 100 entries",
+      "Only the first twenty"
+    ],
+    "correctIndex": 0,
+    "explanation": "The requirement is a distinct random sample of the requested length."
+  },
+  {
+    "question": "What does random selection not guarantee?",
+    "options": [
+      "Option shuffling",
+      "Two students can never receive the same test",
+      "The requested length",
+      "Distinct questions within one test"
+    ],
+    "correctIndex": 1,
+    "explanation": "Random collisions are possible."
+  },
+  {
+    "question": "After option shuffling, what should scoring compare?",
+    "options": [
+      "The pre-sample position",
+      "The number of options",
+      "The chosen answer with the generated question's current correctIndex",
+      "The original bank position"
+    ],
+    "correctIndex": 2,
+    "explanation": "Scoring must use the generated, shuffled question."
+  },
+  {
+    "question": "Why generate the sample when Start Test is clicked?",
+    "options": [
+      "Opening a tab authenticates ARP",
+      "It prevents broadcasts",
+      "It permanently orders options",
+      "Each explicit attempt can receive a fresh sample and order"
+    ],
+    "correctIndex": 3,
+    "explanation": "Generation at start keeps an active attempt stable and restarts fresh."
+  },
+  {
+    "question": "A 10-question attempt is halfway complete. What is its progress denominator?",
+    "options": [
+      "10",
+      "20",
+      "100",
+      "The current option count"
+    ],
+    "correctIndex": 0,
+    "explanation": "Progress is based on the selected test length."
+  },
+  {
+    "question": "An attempt gets 8 correct out of 10. Which scoring is required?",
+    "options": [
+      "Score only option A",
+      "8/10 with one point per correct answer and no negative marking",
+      "8/100",
+      "Deduct points for wrong answers"
+    ],
+    "correctIndex": 1,
+    "explanation": "The generated test is scored independently, without negative marking."
+  },
+  {
+    "question": "A four-option question has correctIndex 4. How should validation classify it?",
+    "options": [
+      "Valid only for 20 questions",
+      "All options are correct",
+      "Invalid; zero-based valid indices are 0 through 3",
+      "Valid because there are four options"
+    ],
+    "correctIndex": 2,
+    "explanation": "Four zero-based options have indices 0, 1, 2, and 3."
+  },
+  {
+    "question": "A bank entry has three options. Which requirement does it violate?",
+    "options": [
+      "Every question must mention Layer 3",
+      "Every explanation must mention HTTPS",
+      "Every question must be definitional",
+      "Every question must have exactly four options"
+    ],
+    "correctIndex": 3,
+    "explanation": "The quiz contract requires four plausible options."
+  },
+  {
+    "question": "A generator shuffles options but loses each question's explanation. What breaks?",
+    "options": [
+      "The existing feedback flow can no longer justify the answer",
+      "The test has too many questions",
+      "The ARP cache expires",
+      "DAI drops the question"
+    ],
+    "correctIndex": 0,
+    "explanation": "Explanation is part of the existing question schema and feedback."
+  },
+  {
+    "question": "A question shows only a forged Reply and asks whether MITM succeeded. What is correct?",
+    "options": [
+      "It proves a static entry",
+      "It supports an attempt, but cache success and forwarding need more evidence",
+      "It proves bidirectional forwarding",
+      "It proves HTTPS plaintext"
+    ],
+    "correctIndex": 1,
+    "explanation": "Packet evidence, cache state, and forwarding outcome are distinct."
+  },
+  {
+    "question": "A victim maps the gateway IP to the attacker MAC, but no capture exists. What is defensible?",
+    "options": [
+      "The gateway cache must match",
+      "The victim has no IP",
+      "Gateway-bound frames are likely addressed to the attacker; forwarding remains unknown",
+      "Passwords were definitely read"
+    ],
+    "correctIndex": 2,
+    "explanation": "The mapping predicts local delivery but not what happens afterward."
+  },
+  {
+    "question": "A gateway maps the victim IP to the attacker MAC while the victim cache is unchanged. What is likely?",
+    "options": [
+      "Both directions are guaranteed through the attacker",
+      "No victim frames can leave",
+      "HTTPS must fail",
+      "Gateway replies may be redirected while victim frames may go directly to the gateway"
+    ],
+    "correctIndex": 3,
+    "explanation": "Each sender uses its own cache, so one-sided poisoning is asymmetric."
+  },
+  {
+    "question": "DAI drops a forged claim before hosts receive it. What is most directly prevented?",
+    "options": [
+      "That claim being learned through the protected switch path",
+      "The attacker running any process",
+      "HTTPS payload decryption",
+      "All DNS queries"
+    ],
+    "correctIndex": 0,
+    "explanation": "DAI's direct purpose is to reject invalid ARP claims."
+  },
+  {
+    "question": "Port security rejects a legitimate failover MAC. What trade-off is illustrated?",
+    "options": [
+      "VPN encryption is lost",
+      "A security limit can require updates for legitimate hardware changes",
+      "DAI always accepts it",
+      "Static ARP updates automatically"
+    ],
+    "correctIndex": 1,
+    "explanation": "MAC-count policy can conflict with legitimate changes."
+  },
+  {
+    "question": "A user ignores an SSH host-key mismatch during ARP interception. What protection is weakened?",
+    "options": [
+      "Gateway forwarding",
+      "The ARP broadcast destination",
+      "Detection of an interception attempt at the SSH trust boundary",
+      "DAI's binding"
+    ],
+    "correctIndex": 2,
+    "explanation": "Fingerprint checking is the application-level warning mechanism."
+  },
+  {
+    "question": "Which statement best preserves the Layer 2/encryption distinction?",
+    "options": [
+      "Encryption prevents MAC changes",
+      "HTTPS authenticates ARP",
+      "Layer 2 always decrypts Layer 7",
+      "Encryption does not stop ARP redirection; it reduces what an in-path attacker can read or forge"
+    ],
+    "correctIndex": 3,
+    "explanation": "This is the theory's key insight."
   }
 ]
